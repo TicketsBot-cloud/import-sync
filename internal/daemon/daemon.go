@@ -131,7 +131,7 @@ func (d *Daemon) RunOnce(ctx context.Context) error {
 			d.logger.Info("Validated transcripts file", zap.Int("count", len(transcripts.Transcripts)))
 
 			// Get mapping for guild
-			mapping, err := d.db.ImportMappingTable.GetMapping(context.Background(), guildId)
+			mapping, err := d.db.ImportMappingTable.GetMapping(ctx, guildId)
 			if err != nil {
 				d.logger.Error("Failed to get mapping", zap.Error(err))
 				return
@@ -148,7 +148,7 @@ func (d *Daemon) RunOnce(ctx context.Context) error {
 				}
 
 				d.logger.Info("Inserting transcript", zap.Uint64("guild", guildId), zap.Int("ticket", newTicketId))
-				if err := utils.ArchiverClient.ImportTranscript(context.Background(), guildId, newTicketId, transcript); err != nil {
+				if err := utils.ArchiverClient.ImportTranscript(ctx, guildId, newTicketId, transcript); err != nil {
 					d.logger.Error("Failed to import transcript", zap.Error(err))
 					continue
 				}
