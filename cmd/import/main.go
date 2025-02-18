@@ -47,7 +47,7 @@ func main() {
 
 	logger.Info("Database connected.")
 
-	s3Client, err := minio.New(config.S3Import.Endpoint, config.S3Import.AccessKey, config.S3Import.SecretKey, true)
+	s3Client, err := minio.New(config.S3.Endpoint, config.S3.AccessKey, config.S3.SecretKey, true)
 	if err != nil {
 		logger.Fatal("Failed to connect to S3", zap.Error(err))
 		return
@@ -65,8 +65,8 @@ func main() {
 			logger.Error("Failed to start daemon", zap.Error(err))
 		}
 	} else {
-		ctx, cancel := context.WithTimeout(context.Background(), config.Daemon.ExecutionTimeout)
-		defer cancel()
+		ctx, _ := context.WithTimeout(context.Background(), config.Daemon.ExecutionTimeout)
+		// defer cancel()
 
 		if err := d.RunOnce(ctx); err != nil {
 			logger.Error("Failed to run once", zap.Error(err))
