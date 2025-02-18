@@ -144,13 +144,13 @@ func (d *Daemon) RunOnce(ctx context.Context) error {
 
 				if newTicketId == 0 {
 					d.logger.Warn("No mapping found for ticket", zap.Int("ticket", ticketId))
-					continue
+					return
 				}
 
 				d.logger.Info("Inserting transcript", zap.Uint64("guild", guildId), zap.Int("ticket", newTicketId))
 				if err := utils.ArchiverClient.ImportTranscript(ctx, guildId, newTicketId, transcript); err != nil {
 					d.logger.Error("Failed to import transcript", zap.Error(err))
-					continue
+					return
 				}
 			}
 
