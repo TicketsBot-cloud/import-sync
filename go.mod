@@ -2,15 +2,15 @@ module github.com/TicketsBot-cloud/transcript-import-sync
 
 go 1.22.6
 
-replace github.com/TicketsBot-cloud/database => ../database
+// replace github.com/TicketsBot-cloud/database => ../database
 
-replace github.com/TicketsBot-cloud/common => ../common
+// replace github.com/TicketsBot-cloud/common => ../common
 
 require (
 	github.com/BurntSushi/toml v1.4.0
 	github.com/TicketsBot-cloud/archiverclient v0.0.0-20250206203822-d4f91573ad70
 	github.com/TicketsBot-cloud/common v0.0.0-20250208140430-b5da1dd487b3
-	github.com/TicketsBot-cloud/database v0.0.0-20250208140247-a3ced2089495
+	github.com/TicketsBot-cloud/database v0.0.0-20250215204312-d433be0833c9
 	github.com/TicketsBot/export v0.0.0-20250210204456-b8c76fd55d96
 	github.com/caarlos0/env/v11 v11.3.1
 	github.com/getsentry/sentry-go v0.31.1
@@ -36,7 +36,7 @@ require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgproto3/v2 v2.3.3 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
-	github.com/jackc/pgtype v1.14.0 // indirect
+	github.com/jackc/pgtype v1.14.4 // indirect
 	github.com/jackc/pgx v3.6.2+incompatible // indirect
 	github.com/jackc/pgx/v5 v5.7.2 // indirect
 	github.com/jackc/puddle v1.3.0 // indirect
