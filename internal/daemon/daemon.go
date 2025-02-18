@@ -85,9 +85,6 @@ func (d *Daemon) RunOnce(ctx context.Context) error {
 	var wg sync.WaitGroup
 
 	for object := range objectCh {
-		if object.Key != "transcripts/703994580499955784.zip" {
-			continue
-		}
 		wg.Add(1)
 
 		go func() {
