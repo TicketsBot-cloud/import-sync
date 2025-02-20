@@ -2,7 +2,7 @@ module github.com/TicketsBot-cloud/import-sync
 
 go 1.22.6
 
-replace github.com/TicketsBot-cloud/database => ../database
+// replace github.com/TicketsBot-cloud/database => ../database
 
 // replace github.com/TicketsBot-cloud/common => ../common
 
