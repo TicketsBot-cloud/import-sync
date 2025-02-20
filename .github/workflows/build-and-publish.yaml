@@ -2,7 +2,7 @@ name: Build and Publish
 
 env:
   REGISTRY: ghcr.io
-  PACKAGE_NAME: transcript-import-sync
+  PACKAGE_NAME: import-sync
   GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
   GITHUB_SHA: ${{ github.sha }}
 

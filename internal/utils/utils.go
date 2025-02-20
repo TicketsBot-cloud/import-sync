@@ -2,13 +2,15 @@ package utils
 
 import (
 	"crypto/ed25519"
+	"crypto/rand"
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
+	"math/big"
 
 	"github.com/TicketsBot-cloud/archiverclient"
 	"github.com/TicketsBot-cloud/common/observability"
-	"github.com/TicketsBot-cloud/transcript-import-sync/internal/config"
+	"github.com/TicketsBot-cloud/import-sync/internal/config"
 	"github.com/minio/minio-go"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -57,4 +59,30 @@ func GetV1PublicKey() (*ed25519.PublicKey, error) {
 	}
 
 	return &decryptedPublicKey, nil
+}
+
+var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
+func RandString(length int) (string, error) {
+	b := make([]rune, length)
+	for i := range b {
+		idx, err := rand.Int(rand.Reader, big.NewInt(int64(len(letterRunes))))
+		if err != nil {
+			return "", err
+		}
+
+		b[i] = letterRunes[idx.Int64()]
+	}
+
+	return string(b), nil
+}
+
+func Contains[T comparable](slice []T, value T) bool {
+	for _, elem := range slice {
+		if elem == value {
+			return true
+		}
+	}
+
+	return false
 }

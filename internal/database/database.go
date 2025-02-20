@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/TicketsBot-cloud/database"
-	"github.com/TicketsBot-cloud/transcript-import-sync/internal/config"
+	"github.com/TicketsBot-cloud/import-sync/internal/config"
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgconn/stmtcache"
 	"github.com/jackc/pgx/v4"

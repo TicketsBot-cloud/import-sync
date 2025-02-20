@@ -14,7 +14,10 @@ type Config struct {
 		Enabled          bool          `env:"ENABLED" envDefault:"false"`
 		Frequency        time.Duration `env:"FREQUENCY" envDefault:"1h"`
 		ExecutionTimeout time.Duration `env:"EXECUTION_TIMEOUT" envDefault:"30m"`
+		Type             string        `env:"TYPE" envDefault:"DATA"`
 	} `envPrefix:"DAEMON_"`
+
+	BotToken string `env:"BOT_TOKEN,required"`
 
 	SentryDsn string        `env:"SENTRY_DSN"`
 	JsonLogs  bool          `env:"JSON_LOGS" envDefault:"false"`

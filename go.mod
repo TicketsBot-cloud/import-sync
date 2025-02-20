@@ -1,8 +1,8 @@
-module github.com/TicketsBot-cloud/transcript-import-sync
+module github.com/TicketsBot-cloud/import-sync
 
 go 1.22.6
 
-// replace github.com/TicketsBot-cloud/database => ../database
+replace github.com/TicketsBot-cloud/database => ../database
 
 // replace github.com/TicketsBot-cloud/common => ../common
 
@@ -26,9 +26,15 @@ require (
 	github.com/TicketsBot/common v0.0.0-20241117150316-ff54c97b45c1 // indirect
 	github.com/TicketsBot/database v0.0.0-20250205194156-c8239ae6eb4e // indirect
 	github.com/TicketsBot/logarchiver v0.0.0-20241116233207-0cfab8ec82cf // indirect
+	github.com/TicketsBot/ttlcache v1.6.1-0.20200405150101-acc18e37b261 // indirect
+	github.com/boltdb/bolt v1.3.1 // indirect
 	github.com/caarlos0/env v3.5.0+incompatible // indirect
+	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
+	github.com/go-errors/errors v1.4.2 // indirect
 	github.com/go-ini/ini v1.67.0 // indirect
+	github.com/go-redis/redis/v8 v8.11.3 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
@@ -42,6 +48,7 @@ require (
 	github.com/jackc/puddle v1.3.0 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
+	github.com/juju/ratelimit v1.0.1 // indirect
 	github.com/klauspost/compress v1.17.11 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.9 // indirect
 	github.com/minio/crc64nvme v1.0.1 // indirect
@@ -50,11 +57,13 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
+	github.com/pasztorpisti/qs v0.0.0-20171216220353-8d6c33ee906c // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/rs/xid v1.6.0 // indirect
 	github.com/rxdn/gdl v0.0.0-20241201120412-8fd61c53dd96 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/crypto v0.33.0 // indirect
+	golang.org/x/exp v0.0.0-20241108190413-2d47ceb2692f // indirect
 	golang.org/x/net v0.35.0 // indirect
 	golang.org/x/sync v0.11.0 // indirect
 	golang.org/x/sys v0.30.0 // indirect

@@ -5,8 +5,8 @@ RUN go version
 
 RUN apt-get update && apt-get upgrade -y && apt-get install -y ca-certificates git zlib1g-dev
 
-COPY . /go/src/github.com/TicketsBot-cloud/transcript-import-sync
-WORKDIR /go/src/github.com/TicketsBot-cloud/transcript-import-sync
+COPY . /go/src/github.com/TicketsBot-cloud/import-sync
+WORKDIR /go/src/github.com/TicketsBot-cloud/import-sync
 
 RUN git submodule update --init --recursive --remote
 
@@ -24,12 +24,12 @@ FROM ubuntu:latest
 
 RUN apt-get update && apt-get upgrade -y && apt-get install -y ca-certificates curl
 
-COPY --from=builder /go/src/github.com/TicketsBot-cloud/transcript-import-sync/main /srv/transcript-import-sync/main
+COPY --from=builder /go/src/github.com/TicketsBot-cloud/import-sync/main /srv/import-sync/main
 
-RUN chmod +x /srv/transcript-import-sync/main
+RUN chmod +x /srv/import-sync/main
 
 RUN useradd -m container
 USER container
-WORKDIR /srv/transcript-import-sync
+WORKDIR /srv/import-sync
 
-CMD ["/srv/transcript-import-sync/main"]
+CMD ["/srv/import-sync/main"]

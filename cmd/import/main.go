@@ -5,11 +5,11 @@ import (
 	"fmt"
 
 	"github.com/TicketsBot-cloud/archiverclient"
-	configp "github.com/TicketsBot-cloud/transcript-import-sync/internal/config"
-	"github.com/TicketsBot-cloud/transcript-import-sync/internal/daemon"
-	"github.com/TicketsBot-cloud/transcript-import-sync/internal/database"
-	"github.com/TicketsBot-cloud/transcript-import-sync/internal/log"
-	"github.com/TicketsBot-cloud/transcript-import-sync/internal/utils"
+	configp "github.com/TicketsBot-cloud/import-sync/internal/config"
+	"github.com/TicketsBot-cloud/import-sync/internal/daemon"
+	"github.com/TicketsBot-cloud/import-sync/internal/database"
+	"github.com/TicketsBot-cloud/import-sync/internal/log"
+	"github.com/TicketsBot-cloud/import-sync/internal/utils"
 	"github.com/getsentry/sentry-go"
 	"github.com/minio/minio-go"
 	"go.uber.org/zap"
@@ -68,8 +68,15 @@ func main() {
 		ctx, _ := context.WithTimeout(context.Background(), config.Daemon.ExecutionTimeout)
 		// defer cancel()
 
-		if err := d.RunOnce(ctx); err != nil {
-			logger.Error("Failed to run once", zap.Error(err))
+		switch config.Daemon.Type {
+		case "TRANSCRIPT":
+			if err := d.RunTranscriptsOnce(ctx); err != nil {
+				logger.Error("Failed to run once", zap.Error(err))
+			}
+		case "DATA":
+			if err := d.RunDataOnce(ctx); err != nil {
+				logger.Error("Failed to run once", zap.Error(err))
+			}
 		}
 	}
 
