@@ -10,11 +10,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/TicketsBot-cloud/common/premium"
 	"github.com/TicketsBot-cloud/database"
 	"github.com/TicketsBot-cloud/import-sync/internal/config"
 	"github.com/TicketsBot-cloud/import-sync/internal/utils"
-	"github.com/TicketsBot-cloud/import-sync/rpc"
 	"github.com/TicketsBot-cloud/import-sync/validator"
 	"github.com/jackc/pgx/v4"
 	"github.com/minio/minio-go"
@@ -299,12 +297,6 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 
 			d.logger.Info("Validated data file", zap.Uint64("guild", guildId))
 
-			premiumTier, err := rpc.PremiumClient.GetTierByGuildId(ctx, guildId, true, d.config.BotToken, nil)
-			if err != nil {
-				d.logger.Error("Failed to get premium tier", zap.Error(err))
-				return
-			}
-
 			// Get ticket maps
 			mapping, err := d.db.ImportMappingTable.GetMapping(ctx, guildId)
 			if err != nil {
@@ -385,9 +377,6 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 			// import AutocloseSettings
 			group.Go(func() (err error) {
 				if data.AutocloseSettings != nil {
-					if premiumTier < premium.Premium {
-						data.AutocloseSettings.Enabled = false
-					}
 					if err := d.db.AutoClose.Set(ctx, guildId, *data.AutocloseSettings); err != nil {
 						d.logger.Error("Failed to import autoclose settings", zap.Uint64("guild", guildId), zap.Error(err))
 						d.db.ImportLogs.AddLog(ctx, guildId, runId, "FAIL", "autoclose_settings", "Failed to import autoclose settings")
@@ -465,10 +454,6 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 
 			// Import custom colours
 			group.Go(func() (err error) {
-				if premiumTier < premium.Premium {
-					return
-				}
-
 				failedColours := 0
 
 				for k, v := range data.CustomColors {
@@ -887,11 +872,6 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 			failedPanels := make([]int, 0)
 			for _, panel := range data.Panels {
 				if _, ok := panelIdMap[panel.PanelId]; !ok {
-					if premiumTier < premium.Premium && panelCount > 2 {
-						panel.ForceDisabled = true
-						panel.Disabled = true
-					}
-
 					if panel.FormId != nil {
 						if failedForms != nil && utils.Contains(failedForms, *panel.FormId) {
 							d.logger.Warn("Skipping panel due to missing form", zap.Uint64("guild", guildId), zap.Int("panel", panel.PanelId))
