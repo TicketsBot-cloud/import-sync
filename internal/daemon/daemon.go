@@ -116,7 +116,7 @@ func (d *Daemon) RunTranscriptsOnce(ctx context.Context) error {
 
 			d.logger.Info("Found object", zap.String("object", object.Key))
 
-			guildId, err := strconv.ParseUint(strings.Replace(strings.Replace(object.Key, "data/", "", 1), ".zip", "", 1), 10, 64)
+			guildId, err := strconv.ParseUint(strings.Replace(strings.Replace(object.Key, "transcripts/", "", 1), ".zip", "", 1), 10, 64)
 			if err != nil {
 				d.logger.Error("Failed to parse guild ID", zap.Error(err))
 				return
