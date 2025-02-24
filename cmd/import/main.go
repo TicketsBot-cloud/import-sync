@@ -10,6 +10,7 @@ import (
 	"github.com/TicketsBot-cloud/import-sync/internal/database"
 	"github.com/TicketsBot-cloud/import-sync/internal/log"
 	"github.com/TicketsBot-cloud/import-sync/internal/utils"
+	"github.com/TicketsBot-cloud/import-sync/redis"
 	"github.com/getsentry/sentry-go"
 	"github.com/minio/minio-go"
 	"go.uber.org/zap"
@@ -56,9 +57,11 @@ func main() {
 	logger.Info("S3 connected.")
 	utils.S3Client = s3Client
 
+	redis.Client = redis.NewRedisClient()
+
 	utils.ArchiverClient = archiverclient.NewArchiverClient(archiverclient.NewProxyRetriever(config.LogArchiver.Url), []byte(config.LogArchiver.Key))
 
-	d := daemon.NewDaemon(config, database.Client, logger)
+	d := daemon.NewDaemon(config, database.Client, logger, redis.Client)
 
 	if config.Daemon.Enabled {
 		if err := d.Start(); err != nil {
