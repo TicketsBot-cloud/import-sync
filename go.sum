@@ -7,8 +7,8 @@ github.com/TicketsBot-cloud/archiverclient v0.0.0-20250206203822-d4f91573ad70 h1
 github.com/TicketsBot-cloud/archiverclient v0.0.0-20250206203822-d4f91573ad70/go.mod h1:BtS3JYHIuRStuUm909E7IDAwg7aAuiS5CNfIH5Y+Ayw=
 github.com/TicketsBot-cloud/common v0.0.0-20250208140430-b5da1dd487b3 h1:2rpwH5o8negd0BCqWG8xv9r0jh/fYK3P/V3WJ+yFDKs=
 github.com/TicketsBot-cloud/common v0.0.0-20250208140430-b5da1dd487b3/go.mod h1:gn88nKOiWkAgFhhTyuuo+sPFAQEVdTK+P/VXAxOBKNw=
-github.com/TicketsBot-cloud/database v0.0.0-20250220201012-30fffa0990fd h1:ET3r9lMIPfDOXllIT1Xsq3pyONj+lG9qAX1ET/fmltg=
-github.com/TicketsBot-cloud/database v0.0.0-20250220201012-30fffa0990fd/go.mod h1:LPDEn9e5wccH7rq/pUlVcL3UhyLnnwdM2dhj0tp/ljo=
+github.com/TicketsBot-cloud/database v0.0.0-20250225211624-febe94606fe2 h1:AKQ4JAETtAhuBsgHGwF9yXi5Q+/ROQM/TgJdlGD7H84=
+github.com/TicketsBot-cloud/database v0.0.0-20250225211624-febe94606fe2/go.mod h1:LPDEn9e5wccH7rq/pUlVcL3UhyLnnwdM2dhj0tp/ljo=
 github.com/TicketsBot/common v0.0.0-20241117150316-ff54c97b45c1 h1:FqC1KGOsmB+ikvbmDkyNQU6bGUWyfYq8Ip9r4KxTveY=
 github.com/TicketsBot/common v0.0.0-20241117150316-ff54c97b45c1/go.mod h1:N7zwetwx8B3RK/ZajWwMroJSyv2ZJ+bIOZWv/z8DhaM=
 github.com/TicketsBot/logarchiver v0.0.0-20241116233207-0cfab8ec82cf h1:Hjkb9Jog6KhuE/mDdn/0UJBs3D0H/vs8O5Z1+kxnOoM=
@@ -267,8 +267,8 @@ golang.org/x/crypto v0.0.0-20210711020723-a769d52b0f97/go.mod h1:GvvjBRRGRdwPK5y
 golang.org/x/crypto v0.0.0-20210921155107-089bfa567519/go.mod h1:GvvjBRRGRdwPK5ydBHafDWAxML/pGHZbMvKqRZ5+Abc=
 golang.org/x/crypto v0.19.0/go.mod h1:Iy9bg/ha4yyC70EfRS8jz+B6ybOBKMaSxLj6P6oBDfU=
 golang.org/x/crypto v0.20.0/go.mod h1:Xwo95rrVNIoSMx9wa1JroENMToLWn3RNVrTBpLHgZPQ=
-golang.org/x/crypto v0.33.0 h1:IOBPskki6Lysi0lo9qQvbxiQ+FvsCC/YWOecCHAixus=
-golang.org/x/crypto v0.33.0/go.mod h1:bVdXmD7IV/4GdElGPozy6U7lWdRXA4qyRVGJV57uQ5M=
+golang.org/x/crypto v0.35.0 h1:b15kiHdrGCHrP6LvwaQ3c03kgNhhiMgvlhxHQhmg2Xs=
+golang.org/x/crypto v0.35.0/go.mod h1:dy7dXNW32cAb/6/PRuTNsix8T+vJAqvuIy5Bli/x0YQ=
 golang.org/x/exp v0.0.0-20241108190413-2d47ceb2692f h1:XdNn9LlyWAhLVp6P/i8QYBW+hlyhrhei9uErw2B5GJo=
 golang.org/x/exp v0.0.0-20241108190413-2d47ceb2692f/go.mod h1:D5SMRVC3C2/4+F/DB1wZsLRnSNimn2Sp/NPsCrsv8ak=
 golang.org/x/lint v0.0.0-20190930215403-16217165b5de/go.mod h1:6SW0HCj/g11FgYtHlgUYUwCkIfeOF89ocIRzGO/8vkc=

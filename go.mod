@@ -1,6 +1,8 @@
 module github.com/TicketsBot-cloud/import-sync
 
-go 1.22.6
+go 1.23.0
+
+toolchain go1.24.0
 
 // replace github.com/TicketsBot-cloud/database => ../database
 
@@ -10,9 +12,10 @@ require (
 	github.com/BurntSushi/toml v1.4.0
 	github.com/TicketsBot-cloud/archiverclient v0.0.0-20250206203822-d4f91573ad70
 	github.com/TicketsBot-cloud/common v0.0.0-20250208140430-b5da1dd487b3
-	github.com/TicketsBot-cloud/database v0.0.0-20250220201012-30fffa0990fd
+	github.com/TicketsBot-cloud/database v0.0.0-20250225211624-febe94606fe2
 	github.com/caarlos0/env/v11 v11.3.1
 	github.com/getsentry/sentry-go v0.31.1
+	github.com/go-redis/redis/v8 v8.11.3
 	github.com/jackc/pgconn v1.14.3
 	github.com/jackc/pgx/v4 v4.18.3
 	github.com/joho/godotenv v1.5.1
@@ -33,7 +36,6 @@ require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/go-errors/errors v1.4.2 // indirect
 	github.com/go-ini/ini v1.67.0 // indirect
-	github.com/go-redis/redis/v8 v8.11.3 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
@@ -61,7 +63,7 @@ require (
 	github.com/rs/xid v1.6.0 // indirect
 	github.com/rxdn/gdl v0.0.0-20241201120412-8fd61c53dd96 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
-	golang.org/x/crypto v0.33.0 // indirect
+	golang.org/x/crypto v0.35.0 // indirect
 	golang.org/x/exp v0.0.0-20241108190413-2d47ceb2692f // indirect
 	golang.org/x/net v0.35.0 // indirect
 	golang.org/x/sys v0.30.0 // indirect

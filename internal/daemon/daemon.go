@@ -165,6 +165,7 @@ func (d *Daemon) RunTranscriptsOnce(ctx context.Context) error {
 		}
 
 		d.logger.Info("Validated transcripts file", zap.Int("count", len(transcripts.Transcripts)))
+		file.Close()
 
 		// Get list of archived tickets for guild
 		archiveObjs := utils.S3Client.ListObjects(d.config.S3.Archive.Bucket, strconv.FormatUint(guildId, 10), true, doneCh)
