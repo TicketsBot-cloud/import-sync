@@ -177,6 +177,14 @@ func (d *Daemon) RunTranscriptsOnce(ctx context.Context) error {
 			continue
 		}
 
+		const runType = "TRANSCRIPT"
+
+		runId, err := d.db.ImportLogs.CreateRun(ctx, guildId, runType)
+		if err != nil {
+			d.logger.Error("Failed to create run", zap.Error(err))
+			continue
+		}
+
 		for archiveObj := range archiveObjs {
 			if archiveObj.Err != nil {
 				d.logger.Error("Failed to list archive object", zap.Error(archiveObj.Err))
@@ -223,6 +231,7 @@ func (d *Daemon) RunTranscriptsOnce(ctx context.Context) error {
 
 			if exists {
 				d.logger.Warn("Ticket already exists", zap.Uint64("guild", guildId), zap.Int("ticket", newTicketId))
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SKIP", "transcript", fmt.Sprintf("Ticket %d already exists", newTicketId))
 				continue
 			}
 			d.logger.Info("Inserting transcript", zap.Uint64("guild", guildId), zap.Int("ticket", newTicketId))
@@ -232,15 +241,19 @@ func (d *Daemon) RunTranscriptsOnce(ctx context.Context) error {
 					d.logger.Error("Failed to import transcript", zap.Error(err), zap.Int("attempt", attempt))
 					if attempt == maxRetries {
 						d.logger.Error("Max retries reached. Giving up on importing transcript", zap.Error(err))
+						d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "transcript", fmt.Sprintf("Failed to import transcript for ticket #%d after %d attempts", newTicketId, maxRetries))
 						continue
 					}
 				} else {
+					d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "transcript", fmt.Sprintf("Imported transcript for ticket #%d", newTicketId))
 					break
 				}
 			}
 		}
 
 		d.logger.Info("Finished processing guild", zap.Uint64("guild", guildId))
+
+		d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "RUN_COMPLETE", "transcripts", "Imported transcripts")
 
 		// Delete transcripts object
 		if err := utils.S3Client.RemoveObject(d.config.S3.Import.Bucket, object.Key); err != nil {
@@ -366,7 +379,9 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 			continue
 		}
 
-		runId, err := d.db.ImportLogs.CreateRun(ctx, guildId)
+		const runType = "DATA"
+
+		runId, err := d.db.ImportLogs.CreateRun(ctx, guildId, runType)
 		if err != nil {
 			d.logger.Error("Failed to create run", zap.Error(err))
 			continue
@@ -389,10 +404,10 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 			}
 			if err := d.db.ActiveLanguage.Set(ctx, guildId, lang); err != nil {
 				d.logger.Error("Failed to import active language", zap.Uint64("guild", guildId), zap.Error(err))
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "FAIL", "language", "Failed to import active language")
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "language", "Failed to import active language")
 			} else {
 				d.logger.Info("Imported active language", zap.Uint64("guild", guildId), zap.String("language", lang))
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "SUCCESS", "language", "Imported active language")
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "language", "Imported active language")
 			}
 
 			return
@@ -403,10 +418,10 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 			if data.ArchiveChannel != nil {
 				if err := d.db.ArchiveChannel.Set(ctx, guildId, data.ArchiveChannel); err != nil {
 					d.logger.Error("Failed to import archive channel", zap.Uint64("guild", guildId), zap.Error(err))
-					d.db.ImportLogs.AddLog(ctx, guildId, runId, "FAIL", "archive_channel", "Failed to import archive channel")
+					d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "archive_channel", "Failed to import archive channel")
 				} else {
 					d.logger.Info("Imported archive channel", zap.Uint64("guild", guildId), zap.Uint64("channel", *data.ArchiveChannel))
-					d.db.ImportLogs.AddLog(ctx, guildId, runId, "SUCCESS", "archive_channel", "Imported archive channel")
+					d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "archive_channel", "Imported archive channel")
 				}
 			}
 
@@ -418,10 +433,10 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 			if data.AutocloseSettings != nil {
 				if err := d.db.AutoClose.Set(ctx, guildId, *data.AutocloseSettings); err != nil {
 					d.logger.Error("Failed to import autoclose settings", zap.Uint64("guild", guildId), zap.Error(err))
-					d.db.ImportLogs.AddLog(ctx, guildId, runId, "FAIL", "autoclose_settings", "Failed to import autoclose settings")
+					d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "autoclose_settings", "Failed to import autoclose settings")
 				} else {
 					d.logger.Info("Imported autoclose settings", zap.Uint64("guild", guildId), zap.Bool("enabled", data.AutocloseSettings.Enabled))
-					d.db.ImportLogs.AddLog(ctx, guildId, runId, "SUCCESS", "autoclose_settings", "Imported autoclose settings")
+					d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "autoclose_settings", "Imported autoclose settings")
 				}
 			}
 
@@ -441,9 +456,9 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 			}
 
 			if failedUsers == 0 {
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "SUCCESS", "blacklisted_users", "Imported blacklisted users")
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "blacklisted_users", "Imported blacklisted users")
 			} else {
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "FAIL", "blacklisted_users", fmt.Sprintf("Failed to import %d blacklisted users", failedUsers))
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "blacklisted_users", fmt.Sprintf("Failed to import %d blacklisted users", failedUsers))
 			}
 
 			return
@@ -454,10 +469,10 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 			if data.ChannelCategory != nil {
 				if err := d.db.ChannelCategory.Set(ctx, guildId, *data.ChannelCategory); err != nil {
 					d.logger.Error("Failed to import channel category", zap.Uint64("guild", guildId), zap.Error(err))
-					d.db.ImportLogs.AddLog(ctx, guildId, runId, "FAIL", "channel_category", "Failed to import channel category")
+					d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "channel_category", "Failed to import channel category")
 				} else {
 					d.logger.Info("Imported channel category", zap.Uint64("guild", guildId), zap.Uint64("category", *data.ChannelCategory))
-					d.db.ImportLogs.AddLog(ctx, guildId, runId, "SUCCESS", "channel_category", "Imported channel category")
+					d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "channel_category", "Imported channel category")
 				}
 			}
 
@@ -469,10 +484,10 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 			if data.ClaimSettings != nil {
 				if err := d.db.ClaimSettings.Set(ctx, guildId, *data.ClaimSettings); err != nil {
 					d.logger.Error("Failed to import claim settings", zap.Uint64("guild", guildId), zap.Error(err))
-					d.db.ImportLogs.AddLog(ctx, guildId, runId, "FAIL", "claim_settings", "Failed to import claim settings")
+					d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "claim_settings", "Failed to import claim settings")
 				} else {
 					d.logger.Info("Imported claim settings", zap.Uint64("guild", guildId), zap.Any("settings", data.ClaimSettings))
-					d.db.ImportLogs.AddLog(ctx, guildId, runId, "SUCCESS", "claim_settings", "Imported claim settings")
+					d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "claim_settings", "Imported claim settings")
 				}
 			}
 
@@ -483,10 +498,10 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 		group.Go(func() (err error) {
 			if err := d.db.CloseConfirmation.Set(ctx, guildId, data.CloseConfirmationEnabled); err != nil {
 				d.logger.Error("Failed to import close confirmation enabled", zap.Uint64("guild", guildId), zap.Error(err))
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "FAIL", "close_confirmation", "Failed to import close confirmation enabled")
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "close_confirmation", "Failed to import close confirmation enabled")
 			} else {
 				d.logger.Info("Imported close confirmation enabled", zap.Uint64("guild", guildId), zap.Bool("enabled", data.CloseConfirmationEnabled))
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "SUCCESS", "close_confirmation", "Imported close confirmation enabled")
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "close_confirmation", "Imported close confirmation enabled")
 			}
 			return
 		})
@@ -505,9 +520,9 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 			}
 
 			if failedColours == 0 {
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "SUCCESS", "custom_colours", "Imported custom colours")
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "custom_colours", "Imported custom colours")
 			} else {
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "FAIL", "custom_colours", fmt.Sprintf("Failed to import %d custom colours", failedColours))
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "custom_colours", fmt.Sprintf("Failed to import %d custom colours", failedColours))
 			}
 
 			return
@@ -517,10 +532,10 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 		group.Go(func() (err error) {
 			if err := d.db.FeedbackEnabled.Set(ctx, guildId, data.FeedbackEnabled); err != nil {
 				d.logger.Error("Failed to import feedback enabled", zap.Uint64("guild", guildId), zap.Error(err))
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "FAIL", "feedback_enabled", "Failed to import feedback enabled")
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "feedback_enabled", "Failed to import feedback enabled")
 			} else {
 				d.logger.Info("Imported feedback enabled", zap.Uint64("guild", guildId), zap.Bool("enabled", data.FeedbackEnabled))
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "SUCCESS", "feedback_enabled", "Imported feedback enabled")
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "feedback_enabled", "Imported feedback enabled")
 			}
 			return
 		})
@@ -529,10 +544,10 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 		group.Go(func() (err error) {
 			if err := d.db.GuildMetadata.Set(ctx, guildId, data.GuildMetadata); err != nil {
 				d.logger.Error("Failed to import guild metadata", zap.Uint64("guild", guildId), zap.Error(err))
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "FAIL", "guild_metadata", "Failed to import guild metadata")
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "guild_metadata", "Failed to import guild metadata")
 			} else {
 				d.logger.Info("Imported guild metadata", zap.Uint64("guild", guildId), zap.Any("metadata", data.GuildMetadata))
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "SUCCESS", "guild_metadata", "Imported guild metadata")
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "guild_metadata", "Imported guild metadata")
 			}
 			return
 		})
@@ -542,10 +557,10 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 			if data.NamingScheme != nil {
 				if err := d.db.NamingScheme.Set(ctx, guildId, *data.NamingScheme); err != nil {
 					d.logger.Error("Failed to import naming scheme", zap.Uint64("guild", guildId), zap.Error(err))
-					d.db.ImportLogs.AddLog(ctx, guildId, runId, "FAIL", "naming_scheme", "Failed to import naming scheme")
+					d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "naming_scheme", "Failed to import naming scheme")
 				} else {
 					d.logger.Info("Imported naming scheme", zap.Uint64("guild", guildId), zap.Any("scheme", data.NamingScheme))
-					d.db.ImportLogs.AddLog(ctx, guildId, runId, "SUCCESS", "naming_scheme", "Imported naming scheme")
+					d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "naming_scheme", "Imported naming scheme")
 				}
 			}
 
@@ -569,9 +584,9 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 			}
 
 			if failedUsers == 0 {
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "SUCCESS", "on_call_users", "Imported on call users")
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "on_call_users", "Imported on call users")
 			} else {
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "FAIL", "on_call_users", fmt.Sprintf("Failed to import %d on call users", failedUsers))
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "on_call_users", fmt.Sprintf("Failed to import %d on call users", failedUsers))
 			}
 
 			return
@@ -599,9 +614,9 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 			}
 
 			if failedUsers == 0 {
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "SUCCESS", "user_permissions", "Imported user permissions")
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "user_permissions", "Imported user permissions")
 			} else {
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "FAIL", "user_permissions", fmt.Sprintf("Failed to import %d user permissions", failedUsers))
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "user_permissions", fmt.Sprintf("Failed to import %d user permissions", failedUsers))
 			}
 
 			return
@@ -621,9 +636,9 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 			}
 
 			if failedRoles == 0 {
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "SUCCESS", "guild_blacklisted_roles", "Imported guild blacklisted roles")
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "guild_blacklisted_roles", "Imported guild blacklisted roles")
 			} else {
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "FAIL", "guild_blacklisted_roles", fmt.Sprintf("Failed to import %d guild blacklisted roles", failedRoles))
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "guild_blacklisted_roles", fmt.Sprintf("Failed to import %d guild blacklisted roles", failedRoles))
 			}
 
 			return
@@ -651,9 +666,9 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 			}
 
 			if failedRoles == 0 {
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "SUCCESS", "role_permissions", "Imported role permissions")
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "role_permissions", "Imported role permissions")
 			} else {
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "FAIL", "role_permissions", fmt.Sprintf("Failed to import %d role permissions", failedRoles))
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "role_permissions", fmt.Sprintf("Failed to import %d role permissions", failedRoles))
 			}
 
 			return
@@ -672,9 +687,9 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 			}
 
 			if failedTags == 0 {
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "SUCCESS", "tags", "Imported tags")
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "tags", "Imported tags")
 			} else {
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "FAIL", "tags", fmt.Sprintf("Failed to import %d tags", failedTags))
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "tags", fmt.Sprintf("Failed to import %d tags", failedTags))
 			}
 
 			return
@@ -685,10 +700,10 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 			if data.TicketLimit != nil {
 				if err := d.db.TicketLimit.Set(ctx, guildId, uint8(*data.TicketLimit)); err != nil {
 					d.logger.Error("Failed to import ticket limit", zap.Uint64("guild", guildId), zap.Uint8("limit", uint8(*data.TicketLimit)), zap.Error(err))
-					d.db.ImportLogs.AddLog(ctx, guildId, runId, "FAIL", "ticket_limit", "Failed to import ticket limit")
+					d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "ticket_limit", "Failed to import ticket limit")
 				} else {
 					d.logger.Info("Imported ticket limit", zap.Uint64("guild", guildId), zap.Uint8("limit", uint8(*data.TicketLimit)))
-					d.db.ImportLogs.AddLog(ctx, guildId, runId, "SUCCESS", "ticket_limit", "Imported ticket limit")
+					d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "ticket_limit", "Imported ticket limit")
 				}
 			}
 
@@ -699,10 +714,10 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 		group.Go(func() (err error) {
 			if err := d.db.TicketPermissions.Set(ctx, guildId, data.TicketPermissions); err != nil {
 				d.logger.Error("Failed to import ticket permissions", zap.Uint64("guild", guildId), zap.Any("permissions", data.TicketPermissions), zap.Error(err))
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "FAIL", "ticket_permissions", "Failed to import ticket permissions")
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "ticket_permissions", "Failed to import ticket permissions")
 			} else {
 				d.logger.Info("Imported ticket permissions", zap.Uint64("guild", guildId), zap.Any("permissions", data.TicketPermissions))
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "SUCCESS", "ticket_permissions", "Imported ticket permissions")
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "ticket_permissions", "Imported ticket permissions")
 			}
 
 			return
@@ -712,10 +727,10 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 		group.Go(func() (err error) {
 			if err := d.db.UsersCanClose.Set(ctx, guildId, data.UsersCanClose); err != nil {
 				d.logger.Error("Failed to import users can close", zap.Uint64("guild", guildId), zap.Bool("can_close", data.UsersCanClose), zap.Error(err))
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "FAIL", "users_can_close", "Failed to import users can close")
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "users_can_close", "Failed to import users can close")
 			} else {
 				d.logger.Info("Imported users can close", zap.Uint64("guild", guildId), zap.Bool("can_close", data.UsersCanClose))
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "SUCCESS", "users_can_close", "Imported users can close")
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "users_can_close", "Imported users can close")
 			}
 
 			return
@@ -726,10 +741,10 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 			if data.WelcomeMessage != nil {
 				if err := d.db.WelcomeMessages.Set(ctx, guildId, *data.WelcomeMessage); err != nil {
 					d.logger.Error("Failed to import welcome message", zap.Uint64("guild", guildId), zap.String("message", *data.WelcomeMessage), zap.Error(err))
-					d.db.ImportLogs.AddLog(ctx, guildId, runId, "FAIL", "welcome_message", "Failed to import welcome message")
+					d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "welcome_message", "Failed to import welcome message")
 				} else {
 					d.logger.Info("Imported welcome message", zap.Uint64("guild", guildId), zap.String("message", *data.WelcomeMessage))
-					d.db.ImportLogs.AddLog(ctx, guildId, runId, "SUCCESS", "welcome_message", "Imported welcome message")
+					d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "welcome_message", "Imported welcome message")
 				}
 			}
 
@@ -754,9 +769,9 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 		}
 
 		if failedSupportTeams == 0 {
-			d.db.ImportLogs.AddLog(ctx, guildId, runId, "SUCCESS", "support_teams", "Imported support teams")
+			d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "support_teams", "Imported support teams")
 		} else {
-			d.db.ImportLogs.AddLog(ctx, guildId, runId, "FAIL", "support_teams", fmt.Sprintf("Failed to import %d support teams", failedSupportTeams))
+			d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "support_teams", fmt.Sprintf("Failed to import %d support teams", failedSupportTeams))
 		}
 
 		failedSupportTeamUsers := 0
@@ -773,9 +788,9 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 		}
 
 		if failedSupportTeamUsers == 0 {
-			d.db.ImportLogs.AddLog(ctx, guildId, runId, "SUCCESS", "support_team_users", "Imported support team users")
+			d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "support_team_users", "Imported support team users")
 		} else {
-			d.db.ImportLogs.AddLog(ctx, guildId, runId, "FAIL", "support_team_users", fmt.Sprintf("Failed to import %d support team users", failedSupportTeamUsers))
+			d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "support_team_users", fmt.Sprintf("Failed to import %d support team users", failedSupportTeamUsers))
 		}
 
 		failedSupportTeamRoles := 0
@@ -792,9 +807,9 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 		}
 
 		if failedSupportTeamRoles == 0 {
-			d.db.ImportLogs.AddLog(ctx, guildId, runId, "SUCCESS", "support_team_roles", "Imported support team roles")
+			d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "support_team_roles", "Imported support team roles")
 		} else {
-			d.db.ImportLogs.AddLog(ctx, guildId, runId, "FAIL", "support_team_roles", fmt.Sprintf("Failed to import %d support team roles", failedSupportTeamRoles))
+			d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "support_team_roles", fmt.Sprintf("Failed to import %d support team roles", failedSupportTeamRoles))
 		}
 
 		// Import forms
@@ -815,9 +830,9 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 		}
 
 		if len(failedForms) == 0 {
-			d.db.ImportLogs.AddLog(ctx, guildId, runId, "SUCCESS", "forms", "Imported forms")
+			d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "forms", "Imported forms")
 		} else {
-			d.db.ImportLogs.AddLog(ctx, guildId, runId, "FAIL", "forms", fmt.Sprintf("Failed to import %d forms", len(failedForms)))
+			d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "forms", fmt.Sprintf("Failed to import %d forms", len(failedForms)))
 		}
 
 		d.logger.Info("Importing mapping for forms", zap.Uint64("guild", guildId))
@@ -836,7 +851,7 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 		for _, input := range data.FormInputs {
 			if failedForms != nil && utils.Contains(failedForms, input.FormId) {
 				d.logger.Warn("Skipping form input due to missing form", zap.Uint64("guild", guildId), zap.Int("form", input.FormId))
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "SKIP", "form_input", fmt.Sprintf("Skipping form input due to missing form (Form: %d, ID: %d)", input.FormId, input.Id))
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SKIP", "form_input", fmt.Sprintf("Skipping form input due to missing form (Form: %d, ID: %d)", input.FormId, input.Id))
 				continue
 			}
 			if _, ok := formInputIdMap[input.Id]; !ok {
@@ -850,7 +865,7 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 				}
 			} else {
 				d.logger.Warn("Skipping form input due to existing input", zap.Uint64("guild", guildId), zap.Int("form", input.FormId), zap.Int("input", input.Id))
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "SKIP", "form_input", fmt.Sprintf("Skipping form input due to existing input (Form: %d, ID: %d)", input.FormId, input.Id))
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SKIP", "form_input", fmt.Sprintf("Skipping form input due to existing input (Form: %d, ID: %d)", input.FormId, input.Id))
 			}
 		}
 
@@ -891,9 +906,9 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 		}
 
 		if len(failedEmbeds) == 0 {
-			d.db.ImportLogs.AddLog(ctx, guildId, runId, "SUCCESS", "embeds", "Imported embeds")
+			d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "embeds", "Imported embeds")
 		} else {
-			d.db.ImportLogs.AddLog(ctx, guildId, runId, "FAIL", "embeds", fmt.Sprintf("Failed to import %d embeds", len(failedEmbeds)))
+			d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "embeds", fmt.Sprintf("Failed to import %d embeds", len(failedEmbeds)))
 		}
 
 		// Panel id map
@@ -914,7 +929,7 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 				if panel.FormId != nil {
 					if failedForms != nil && utils.Contains(failedForms, *panel.FormId) {
 						d.logger.Warn("Skipping panel due to missing form", zap.Uint64("guild", guildId), zap.Int("panel", panel.PanelId))
-						d.db.ImportLogs.AddLog(ctx, guildId, runId, "SKIP", "panel", fmt.Sprintf("Skipping panel due to missing form (Panel: %d)", panel.PanelId))
+						d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SKIP", "panel", fmt.Sprintf("Skipping panel due to missing form (Panel: %d)", panel.PanelId))
 						continue
 					}
 					newFormId := formIdMap[*panel.FormId]
@@ -953,9 +968,9 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 		}
 
 		if len(failedPanels) == 0 {
-			d.db.ImportLogs.AddLog(ctx, guildId, runId, "SUCCESS", "panels", "Imported panels")
+			d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "panels", "Imported panels")
 		} else {
-			d.db.ImportLogs.AddLog(ctx, guildId, runId, "FAIL", "panels", fmt.Sprintf("Failed to import %d panels", len(failedPanels)))
+			d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "panels", fmt.Sprintf("Failed to import %d panels", len(failedPanels)))
 		}
 
 		if err := panelTx.Commit(ctx); err != nil {
@@ -979,7 +994,7 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 		for panelId, rules := range data.PanelAccessControlRules {
 			if len(failedPanels) > 0 && utils.Contains(failedPanels, panelId) {
 				d.logger.Warn("Skipping panel access control rules due to missing panel", zap.Uint64("guild", guildId), zap.Int("panel", panelId))
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "SKIP", "panel_access_control_rules", fmt.Sprintf("Skipping panel access control rules due to missing panel (Panel: %d)", panelId))
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SKIP", "panel_access_control_rules", fmt.Sprintf("Skipping panel access control rules due to missing panel (Panel: %d)", panelId))
 				continue
 			}
 			if _, ok := panelIdMap[panelId]; ok {
@@ -989,14 +1004,14 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 				}
 			} else {
 				d.logger.Warn("Skipping panel access control rules due to missing panel", zap.Uint64("guild", guildId), zap.Int("panel", panelId))
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "SKIP", "panel_access_control_rules", fmt.Sprintf("Skipping panel access control rules due to missing panel (Panel: %d)", panelId))
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SKIP", "panel_access_control_rules", fmt.Sprintf("Skipping panel access control rules due to missing panel (Panel: %d)", panelId))
 			}
 		}
 
 		if failedPanelAccessControlRules == 0 {
-			d.db.ImportLogs.AddLog(ctx, guildId, runId, "SUCCESS", "panel_access_control_rules", "Imported panel access control rules")
+			d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "panel_access_control_rules", "Imported panel access control rules")
 		} else {
-			d.db.ImportLogs.AddLog(ctx, guildId, runId, "FAIL", "panel_access_control_rules", fmt.Sprintf("Failed to import %d panel access control rules", failedPanelAccessControlRules))
+			d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "panel_access_control_rules", fmt.Sprintf("Failed to import %d panel access control rules", failedPanelAccessControlRules))
 		}
 
 		// Import Panel Mention User
@@ -1005,7 +1020,7 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 		for panelId, shouldMention := range data.PanelMentionUser {
 			if len(failedPanels) > 0 && utils.Contains(failedPanels, panelId) {
 				d.logger.Warn("Skipping panel mention user due to missing panel", zap.Uint64("guild", guildId), zap.Int("panel", panelId))
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "SKIP", "panel_mention_user", fmt.Sprintf("Skipping panel mention user due to missing panel (Panel: %d)", panelId))
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SKIP", "panel_mention_user", fmt.Sprintf("Skipping panel mention user due to missing panel (Panel: %d)", panelId))
 				continue
 			}
 			if err := d.db.PanelUserMention.Set(ctx, panelIdMap[panelId], shouldMention); err != nil {
@@ -1015,9 +1030,9 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 		}
 
 		if failedPanelMentionUser == 0 {
-			d.db.ImportLogs.AddLog(ctx, guildId, runId, "SUCCESS", "panel_mention_user", "Imported panel mention user")
+			d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "panel_mention_user", "Imported panel mention user")
 		} else {
-			d.db.ImportLogs.AddLog(ctx, guildId, runId, "FAIL", "panel_mention_user", fmt.Sprintf("Failed to import %d panel mention user", failedPanelMentionUser))
+			d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "panel_mention_user", fmt.Sprintf("Failed to import %d panel mention user", failedPanelMentionUser))
 		}
 
 		// Import Panel Role Mentions
@@ -1026,7 +1041,7 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 		for panelId, roles := range data.PanelRoleMentions {
 			if len(failedPanels) > 0 && utils.Contains(failedPanels, panelId) {
 				d.logger.Warn("Skipping panel role mentions due to missing panel", zap.Uint64("guild", guildId), zap.Int("panel", panelId))
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "SKIP", "panel_role_mentions", fmt.Sprintf("Skipping panel role mentions due to missing panel (Panel: %d)", panelId))
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SKIP", "panel_role_mentions", fmt.Sprintf("Skipping panel role mentions due to missing panel (Panel: %d)", panelId))
 				continue
 			}
 			if err := d.db.PanelRoleMentions.Replace(ctx, panelIdMap[panelId], roles); err != nil {
@@ -1036,9 +1051,9 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 		}
 
 		if failedPanelRoleMentions == 0 {
-			d.db.ImportLogs.AddLog(ctx, guildId, runId, "SUCCESS", "panel_role_mentions", "Imported panel role mentions")
+			d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "panel_role_mentions", "Imported panel role mentions")
 		} else {
-			d.db.ImportLogs.AddLog(ctx, guildId, runId, "FAIL", "panel_role_mentions", fmt.Sprintf("Failed to import %d panel role mentions", failedPanelRoleMentions))
+			d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "panel_role_mentions", fmt.Sprintf("Failed to import %d panel role mentions", failedPanelRoleMentions))
 		}
 
 		// Import Panel Teams
@@ -1047,7 +1062,7 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 		for panelId, teams := range data.PanelTeams {
 			if len(failedPanels) > 0 && utils.Contains(failedPanels, panelId) {
 				d.logger.Warn("Skipping panel teams due to missing panel", zap.Uint64("guild", guildId), zap.Int("panel", panelId))
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "SKIP", "panel_teams", fmt.Sprintf("Skipping panel teams due to missing panel (Panel: %d)", panelId))
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SKIP", "panel_teams", fmt.Sprintf("Skipping panel teams due to missing panel (Panel: %d)", panelId))
 				continue
 			}
 			teamsToAdd := make([]int, len(teams))
@@ -1062,9 +1077,9 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 		}
 
 		if failedPanelTeams == 0 {
-			d.db.ImportLogs.AddLog(ctx, guildId, runId, "SUCCESS", "panel_teams", "Imported panel teams")
+			d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "panel_teams", "Imported panel teams")
 		} else {
-			d.db.ImportLogs.AddLog(ctx, guildId, runId, "FAIL", "panel_teams", fmt.Sprintf("Failed to import %d panel teams", failedPanelTeams))
+			d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "panel_teams", fmt.Sprintf("Failed to import %d panel teams", failedPanelTeams))
 		}
 
 		// Import Multi panels
@@ -1083,9 +1098,9 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 		}
 
 		if len(failedMultiPanels) == 0 {
-			d.db.ImportLogs.AddLog(ctx, guildId, runId, "SUCCESS", "multi_panels", "Imported multi panels")
+			d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "multi_panels", "Imported multi panels")
 		} else {
-			d.db.ImportLogs.AddLog(ctx, guildId, runId, "FAIL", "multi_panels", fmt.Sprintf("Failed to import %d multi panels", len(failedMultiPanels)))
+			d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "multi_panels", fmt.Sprintf("Failed to import %d multi panels", len(failedMultiPanels)))
 		}
 
 		// Import Multi Panel Targets
@@ -1094,13 +1109,13 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 		for multiPanelId, panelIds := range data.MultiPanelTargets {
 			if len(failedMultiPanels) > 0 && utils.Contains(failedMultiPanels, multiPanelId) {
 				d.logger.Warn("Skipping multi panel targets due to missing multi panel", zap.Uint64("guild", guildId), zap.Int("multi_panel", multiPanelId))
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "SKIP", "multi_panel_targets", fmt.Sprintf("Skipping multi panel targets due to missing multi panel (Multi Panel: %d)", multiPanelId))
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SKIP", "multi_panel_targets", fmt.Sprintf("Skipping multi panel targets due to missing multi panel (Multi Panel: %d)", multiPanelId))
 				continue
 			}
 			for _, panelId := range panelIds {
 				if len(failedPanels) > 0 && utils.Contains(failedPanels, panelId) {
 					d.logger.Warn("Skipping multi panel target due to missing panel", zap.Uint64("guild", guildId), zap.Int("multi_panel", multiPanelId), zap.Int("panel", panelId))
-					d.db.ImportLogs.AddLog(ctx, guildId, runId, "SKIP", "multi_panel_targets", fmt.Sprintf("Skipping multi panel target due to missing panel (Multi Panel: %d, Panel: %d)", multiPanelId, panelId))
+					d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SKIP", "multi_panel_targets", fmt.Sprintf("Skipping multi panel target due to missing panel (Multi Panel: %d, Panel: %d)", multiPanelId, panelId))
 					continue
 				}
 				if err := d.db.MultiPanelTargets.Insert(ctx, multiPanelIdMap[multiPanelId], panelIdMap[panelId]); err != nil {
@@ -1110,9 +1125,9 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 		}
 
 		if failedMultiPanelTargets == 0 {
-			d.db.ImportLogs.AddLog(ctx, guildId, runId, "SUCCESS", "multi_panel_targets", "Imported multi panel targets")
+			d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "multi_panel_targets", "Imported multi panel targets")
 		} else {
-			d.db.ImportLogs.AddLog(ctx, guildId, runId, "FAIL", "multi_panel_targets", fmt.Sprintf("Failed to import %d multi panel targets", failedMultiPanelTargets))
+			d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "multi_panel_targets", fmt.Sprintf("Failed to import %d multi panel targets", failedMultiPanelTargets))
 		}
 
 		if data.Settings.ContextMenuPanel != nil {
@@ -1124,9 +1139,9 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 		d.logger.Info("Importing settings", zap.Uint64("guild", guildId))
 		if err := d.db.Settings.Set(ctx, guildId, data.Settings); err != nil {
 			d.logger.Error("Failed to import settings", zap.Uint64("guild", guildId), zap.Error(err))
-			d.db.ImportLogs.AddLog(ctx, guildId, runId, "FAIL", "settings", "Failed to import settings")
+			d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "settings", "Failed to import settings")
 		} else {
-			d.db.ImportLogs.AddLog(ctx, guildId, runId, "SUCCESS", "settings", "Imported settings")
+			d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "settings", "Imported settings")
 		}
 
 		ticketCount, err := d.db.Tickets.GetTotalTicketCount(ctx, guildId)
@@ -1165,16 +1180,16 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 				ticketIdMapTwo[ticket.Id] = ticket.Id + ticketCount
 			} else {
 				d.logger.Warn("Skipping ticket due to existing ticket", zap.Uint64("guild", guildId), zap.Int("ticket", ticket.Id))
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "SKIP", "ticket", fmt.Sprintf("Skipping ticket due to existing ticket (Ticket: %d)", ticket.Id))
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SKIP", "ticket", fmt.Sprintf("Skipping ticket due to existing ticket (Ticket: %d)", ticket.Id))
 			}
 		}
 
 		d.logger.Info("Importing tickets", zap.Uint64("guild", guildId))
 		if err := d.db.Tickets.BulkImport(ctx, guildId, ticketsToCreate); err != nil {
 			d.logger.Error("Failed to import tickets", zap.Uint64("guild", guildId), zap.Error(err))
-			d.db.ImportLogs.AddLog(ctx, guildId, runId, "FAIL", "tickets", "Failed to import tickets")
+			d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "tickets", "Failed to import tickets")
 		} else {
-			d.db.ImportLogs.AddLog(ctx, guildId, runId, "SUCCESS", "tickets", "Imported tickets")
+			d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "tickets", "Imported tickets")
 		}
 
 		// Update the mapping
@@ -1203,9 +1218,9 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 
 			if err := d.db.TicketMembers.ImportBulk(ctx, guildId, newMembersMap); err != nil {
 				d.logger.Error("Failed to import ticket members", zap.Uint64("guild", guildId), zap.Error(err))
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "FAIL", "ticket_members", "Failed to import ticket members")
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "ticket_members", "Failed to import ticket members")
 			} else {
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "SUCCESS", "ticket_members", "Imported ticket members")
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "ticket_members", "Imported ticket members")
 			}
 
 			return
@@ -1230,9 +1245,9 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 
 			if err := d.db.TicketLastMessage.ImportBulk(ctx, guildId, msgs); err != nil {
 				d.logger.Error("Failed to import ticket last messages", zap.Uint64("guild", guildId), zap.Error(err))
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "FAIL", "ticket_last_messages", "Failed to import ticket last messages")
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "ticket_last_messages", "Failed to import ticket last messages")
 			} else {
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "SUCCESS", "ticket_last_messages", "Imported ticket last messages")
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "ticket_last_messages", "Imported ticket last messages")
 			}
 			return
 		})
@@ -1249,9 +1264,9 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 
 			if err := d.db.TicketClaims.ImportBulk(ctx, guildId, newClaimsMap); err != nil {
 				d.logger.Error("Failed to import ticket claims", zap.Uint64("guild", guildId), zap.Error(err))
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "FAIL", "ticket_claims", "Failed to import ticket claims")
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "ticket_claims", "Failed to import ticket claims")
 			} else {
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "SUCCESS", "ticket_claims", "Imported ticket claims")
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "ticket_claims", "Imported ticket claims")
 			}
 			return
 		})
@@ -1269,9 +1284,9 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 
 			if err := d.db.ServiceRatings.ImportBulk(ctx, guildId, newRatingsMap); err != nil {
 				d.logger.Error("Failed to import ticket ratings", zap.Uint64("guild", guildId), zap.Error(err))
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "FAIL", "ticket_ratings", "Failed to import ticket ratings")
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "ticket_ratings", "Failed to import ticket ratings")
 			} else {
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "SUCCESS", "ticket_ratings", "Imported ticket ratings")
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "ticket_ratings", "Imported ticket ratings")
 			}
 			return
 		})
@@ -1289,9 +1304,9 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 
 			if err := d.db.Participants.ImportBulk(ctx, guildId, newParticipantsMap); err != nil {
 				d.logger.Error("Failed to import ticket participants", zap.Uint64("guild", guildId), zap.Error(err))
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "FAIL", "ticket_participants", "Failed to import ticket participants")
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "ticket_participants", "Failed to import ticket participants")
 			} else {
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "SUCCESS", "ticket_participants", "Imported ticket participants")
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "ticket_participants", "Imported ticket participants")
 			}
 			return
 		})
@@ -1311,9 +1326,9 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 			}
 
 			if failedFirstResponseTimes == 0 {
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "SUCCESS", "first_response_times", "Imported first response times")
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "first_response_times", "Imported first response times")
 			} else {
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "FAIL", "first_response_times", fmt.Sprintf("Failed to import %d first response times", failedFirstResponseTimes))
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "first_response_times", fmt.Sprintf("Failed to import %d first response times", failedFirstResponseTimes))
 			}
 			return
 		})
@@ -1336,9 +1351,9 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 			}
 
 			if failedSurveyResponses == 0 {
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "SUCCESS", "exit_survey_responses", "Imported exit survey responses")
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "exit_survey_responses", "Imported exit survey responses")
 			} else {
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "FAIL", "exit_survey_responses", fmt.Sprintf("Failed to import %d exit survey responses", failedSurveyResponses))
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "exit_survey_responses", fmt.Sprintf("Failed to import %d exit survey responses", failedSurveyResponses))
 			}
 			return
 		})
@@ -1358,9 +1373,9 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 			}
 
 			if failedCloseReasons == 0 {
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "SUCCESS", "close_reasons", "Imported close reasons")
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "close_reasons", "Imported close reasons")
 			} else {
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "FAIL", "close_reasons", fmt.Sprintf("Failed to import %d close reasons", failedCloseReasons))
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "close_reasons", fmt.Sprintf("Failed to import %d close reasons", failedCloseReasons))
 			}
 			return
 		})
@@ -1380,9 +1395,9 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 			}
 
 			if failedAutocloseExcluded == 0 {
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "SUCCESS", "autoclose_excluded_tickets", "Imported autoclose excluded tickets")
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "autoclose_excluded_tickets", "Imported autoclose excluded tickets")
 			} else {
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "FAIL", "autoclose_excluded_tickets", fmt.Sprintf("Failed to import %d autoclose excluded tickets", failedAutocloseExcluded))
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "autoclose_excluded_tickets", fmt.Sprintf("Failed to import %d autoclose excluded tickets", failedAutocloseExcluded))
 			}
 			return
 		})
@@ -1402,9 +1417,9 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 			}
 
 			if failedArchiveMessages == 0 {
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "SUCCESS", "archive_messages", "Imported archive messages")
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "archive_messages", "Imported archive messages")
 			} else {
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, "FAIL", "archive_messages", fmt.Sprintf("Failed to import %d archive messages", failedArchiveMessages))
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "archive_messages", fmt.Sprintf("Failed to import %d archive messages", failedArchiveMessages))
 			}
 			return
 		})
@@ -1412,7 +1427,7 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 		_ = ticketsExtrasGroup.Wait()
 
 		d.logger.Info("Finished processing guild", zap.Uint64("guild", guildId))
-		d.db.ImportLogs.AddLog(ctx, guildId, runId, "RUN_COMPLETE", "guild", "Guild import run complete")
+		d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "RUN_COMPLETE", "guild", "Guild import run complete")
 
 		// Delete object
 		if err := utils.S3Client.RemoveObject(d.config.S3.Import.Bucket, object.Key); err != nil {
