@@ -831,18 +831,13 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 
 		if len(failedForms) == 0 {
 			d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "forms", "Imported forms")
+			d.logger.Info("Importing mapping for forms", zap.Uint64("guild", guildId))
+			if err := d.db.ImportMappingTable.SetBulk(ctx, guildId, "form", formIdMap); err != nil {
+				d.logger.Error("Failed to set mapping", zap.Error(err))
+				continue
+			}
 		} else {
 			d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "forms", fmt.Sprintf("Failed to import %d forms", len(failedForms)))
-		}
-
-		d.logger.Info("Importing mapping for forms", zap.Uint64("guild", guildId))
-		for area, m := range map[string]map[int]int{"form": formIdMap} {
-			for sourceId, targetId := range m {
-				if err := d.db.ImportMappingTable.Set(ctx, guildId, area, sourceId, targetId); err != nil {
-					d.logger.Error("Failed to set mapping", zap.Error(err))
-					continue
-				}
-			}
 		}
 
 		// Import form inputs
@@ -869,13 +864,11 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 			}
 		}
 
-		d.logger.Info("Importing mapping for forms inputs", zap.Uint64("guild", guildId))
-		for area, m := range map[string]map[int]int{"form_input": formInputIdMap} {
-			for sourceId, targetId := range m {
-				if err := d.db.ImportMappingTable.Set(ctx, guildId, area, sourceId, targetId); err != nil {
-					d.logger.Error("Failed to set mapping", zap.Error(err))
-					continue
-				}
+		if len(failedFormInputs) == 0 {
+			d.logger.Info("Importing mapping for forms inputs", zap.Uint64("guild", guildId))
+			if err := d.db.ImportMappingTable.SetBulk(ctx, guildId, "form_input", formInputIdMap); err != nil {
+				d.logger.Error("Failed to set mapping", zap.Error(err))
+				continue
 			}
 		}
 
@@ -976,15 +969,11 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 		if err := panelTx.Commit(ctx); err != nil {
 			d.logger.Error("Failed to commit panel transaction", zap.Error(err))
 			continue
-		}
-
-		d.logger.Info("Importing mapping for panels", zap.Uint64("guild", guildId))
-		for area, m := range map[string]map[int]int{"panel": panelIdMap} {
-			for sourceId, targetId := range m {
-				if err := d.db.ImportMappingTable.Set(ctx, guildId, area, sourceId, targetId); err != nil {
-					d.logger.Error("Failed to set mapping", zap.Error(err))
-					continue
-				}
+		} else {
+			d.logger.Info("Importing mapping for panels", zap.Uint64("guild", guildId))
+			if err := d.db.ImportMappingTable.SetBulk(ctx, guildId, "panel", panelIdMap); err != nil {
+				d.logger.Error("Failed to set mapping", zap.Error(err))
+				continue
 			}
 		}
 
@@ -1190,16 +1179,10 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 			d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "tickets", "Failed to import tickets")
 		} else {
 			d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "tickets", "Imported tickets")
-		}
-
-		// Update the mapping
-		d.logger.Info("Importing mapping for tickets", zap.Uint64("guild", guildId))
-		for area, m := range map[string]map[int]int{"ticket": ticketIdMapTwo} {
-			for sourceId, targetId := range m {
-				if err := d.db.ImportMappingTable.Set(ctx, guildId, area, sourceId, targetId); err != nil {
-					d.logger.Error("Failed to set mapping", zap.Error(err))
-					continue
-				}
+			d.logger.Info("Importing mapping for tickets", zap.Uint64("guild", guildId))
+			if err := d.db.ImportMappingTable.SetBulk(ctx, guildId, "ticket", ticketIdMap); err != nil {
+				d.logger.Error("Failed to set mapping", zap.Error(err))
+				continue
 			}
 		}
 
