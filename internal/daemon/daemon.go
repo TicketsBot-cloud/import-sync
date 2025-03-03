@@ -834,7 +834,6 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 			d.logger.Info("Importing mapping for forms", zap.Uint64("guild", guildId))
 			if err := d.db.ImportMappingTable.SetBulk(ctx, guildId, "form", formIdMap); err != nil {
 				d.logger.Error("Failed to set mapping", zap.Error(err))
-				continue
 			}
 		} else {
 			d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "forms", fmt.Sprintf("Failed to import %d forms", len(failedForms)))
