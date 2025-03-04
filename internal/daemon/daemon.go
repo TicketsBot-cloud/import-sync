@@ -251,6 +251,10 @@ func (d *Daemon) RunTranscriptsOnce(ctx context.Context) error {
 			}
 		}
 
+		if len(transcripts.Transcripts) == 0 {
+			d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SKIP", "transcript", "No transcripts to import")
+		}
+
 		d.logger.Info("Finished processing guild", zap.Uint64("guild", guildId))
 
 		d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "RUN_COMPLETE", "transcripts", "Imported transcripts")
@@ -812,6 +816,8 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 			d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "support_team_roles", fmt.Sprintf("Failed to import %d support team roles", failedSupportTeamRoles))
 		}
 
+		newFormIdMap := make(map[int]int)
+
 		// Import forms
 		d.logger.Info("Importing forms", zap.Uint64("guild", guildId))
 		failedForms := make([]int, 0)
@@ -823,6 +829,7 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 					d.logger.Error("Failed to import form", zap.Uint64("guild", guildId), zap.String("title", form.Title), zap.Error(err))
 					failedForms = append(failedForms, form.Id)
 				} else {
+					newFormIdMap[form.Id] = formId
 					formIdMap[form.Id] = formId
 				}
 			} else {
@@ -832,12 +839,14 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 		if len(failedForms) == 0 {
 			d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "forms", "Imported forms")
 			d.logger.Info("Importing mapping for forms", zap.Uint64("guild", guildId))
-			if err := d.db.ImportMappingTable.SetBulk(ctx, guildId, "form", formIdMap); err != nil {
+			if err := d.db.ImportMappingTable.SetBulk(ctx, guildId, "form", newFormIdMap); err != nil {
 				d.logger.Error("Failed to set mapping", zap.Error(err))
 			}
 		} else {
 			d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "forms", fmt.Sprintf("Failed to import %d forms", len(failedForms)))
 		}
+
+		newFormInputIdMap := make(map[int]int)
 
 		// Import form inputs
 		d.logger.Info("Importing form inputs", zap.Uint64("guild", guildId))
@@ -855,6 +864,7 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 					d.logger.Error("Failed to import form input", zap.Uint64("guild", guildId), zap.Int("form", input.FormId), zap.Int("input", input.Id), zap.Error(err))
 					failedFormInputs = append(failedFormInputs, input.Id)
 				} else {
+					newFormInputIdMap[input.Id] = newInputId
 					formInputIdMap[input.Id] = newInputId
 				}
 			} else {
@@ -865,9 +875,8 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 
 		if len(failedFormInputs) == 0 {
 			d.logger.Info("Importing mapping for forms inputs", zap.Uint64("guild", guildId))
-			if err := d.db.ImportMappingTable.SetBulk(ctx, guildId, "form_input", formInputIdMap); err != nil {
+			if err := d.db.ImportMappingTable.SetBulk(ctx, guildId, "form_input", newFormInputIdMap); err != nil {
 				d.logger.Error("Failed to set mapping", zap.Error(err))
-				continue
 			}
 		}
 
@@ -913,6 +922,8 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 
 		panelTx, _ := d.db.Panel.BeginTx(ctx, pgx.TxOptions{})
 
+		newPanelIdMap := make(map[int]int)
+
 		// Import Panels
 		d.logger.Info("Importing panels", zap.Uint64("guild", guildId))
 		failedPanels := make([]int, 0)
@@ -953,6 +964,7 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 					failedPanels = append(failedPanels, panel.PanelId)
 				} else {
 					d.logger.Info("Imported panel", zap.Uint64("guild", guildId), zap.Int("panel", panel.PanelId), zap.Int("new_panel", panelId))
+					newPanelIdMap[panel.PanelId] = panelId
 					panelIdMap[panel.PanelId] = panelId
 					panelCount++
 				}
@@ -970,7 +982,7 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 			continue
 		} else {
 			d.logger.Info("Importing mapping for panels", zap.Uint64("guild", guildId))
-			if err := d.db.ImportMappingTable.SetBulk(ctx, guildId, "panel", panelIdMap); err != nil {
+			if err := d.db.ImportMappingTable.SetBulk(ctx, guildId, "panel", newPanelIdMap); err != nil {
 				d.logger.Error("Failed to set mapping", zap.Error(err))
 				continue
 			}
@@ -1166,6 +1178,7 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 				}
 
 				ticketIdMapTwo[ticket.Id] = ticket.Id + ticketCount
+				ticketIdMap[ticket.Id] = ticket.Id + ticketCount
 			} else {
 				d.logger.Warn("Skipping ticket due to existing ticket", zap.Uint64("guild", guildId), zap.Int("ticket", ticket.Id))
 				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SKIP", "ticket", fmt.Sprintf("Skipping ticket due to existing ticket (Ticket: %d)", ticket.Id))
@@ -1179,7 +1192,7 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 		} else {
 			d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "tickets", "Imported tickets")
 			d.logger.Info("Importing mapping for tickets", zap.Uint64("guild", guildId))
-			if err := d.db.ImportMappingTable.SetBulk(ctx, guildId, "ticket", ticketIdMap); err != nil {
+			if err := d.db.ImportMappingTable.SetBulk(ctx, guildId, "ticket", ticketIdMapTwo); err != nil {
 				d.logger.Error("Failed to set mapping", zap.Error(err))
 				continue
 			}
@@ -1258,10 +1271,10 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 			d.logger.Info("Importing ticket ratings", zap.Uint64("guild", guildId))
 			newRatingsMap := make(map[int]uint8)
 			for ticketId, rating := range data.ServiceRatings {
-				if _, ok := ticketIdMapTwo[ticketId]; !ok {
+				if _, ok := ticketIdMap[ticketId]; !ok {
 					continue
 				}
-				newRatingsMap[ticketIdMapTwo[ticketId]] = uint8(rating.Data)
+				newRatingsMap[ticketIdMap[ticketId]] = uint8(rating.Data)
 			}
 
 			if err := d.db.ServiceRatings.ImportBulk(ctx, guildId, newRatingsMap); err != nil {
@@ -1278,10 +1291,10 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 			d.logger.Info("Importing ticket participants", zap.Uint64("guild", guildId))
 			newParticipantsMap := make(map[int][]uint64)
 			for ticketId, participants := range data.Participants {
-				if _, ok := ticketIdMapTwo[ticketId]; !ok {
+				if _, ok := ticketIdMap[ticketId]; !ok {
 					continue
 				}
-				newParticipantsMap[ticketIdMapTwo[ticketId]] = participants
+				newParticipantsMap[ticketIdMap[ticketId]] = participants
 			}
 
 			if err := d.db.Participants.ImportBulk(ctx, guildId, newParticipantsMap); err != nil {
@@ -1298,10 +1311,10 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 			failedFirstResponseTimes := 0
 			d.logger.Info("Importing first response times", zap.Uint64("guild", guildId))
 			for _, frt := range data.FirstResponseTimes {
-				if _, ok := ticketIdMapTwo[frt.TicketId]; !ok {
+				if _, ok := ticketIdMap[frt.TicketId]; !ok {
 					continue
 				}
-				if err := d.db.FirstResponseTime.Set(ctx, guildId, frt.UserId, ticketIdMapTwo[frt.TicketId], frt.ResponseTime); err != nil {
+				if err := d.db.FirstResponseTime.Set(ctx, guildId, frt.UserId, ticketIdMap[frt.TicketId], frt.ResponseTime); err != nil {
 					d.logger.Error("Failed to import first response time", zap.Uint64("guild", guildId), zap.Uint64("user", frt.UserId), zap.Int("ticket", frt.TicketId), zap.Error(err))
 					failedFirstResponseTimes++
 				}
@@ -1319,14 +1332,14 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 			d.logger.Info("Importing ticket survey responses", zap.Uint64("guild", guildId))
 			failedSurveyResponses := 0
 			for _, response := range data.ExitSurveyResponses {
-				if _, ok := ticketIdMapTwo[response.TicketId]; !ok {
+				if _, ok := ticketIdMap[response.TicketId]; !ok {
 					continue
 				}
 				resps := map[int]string{
 					*response.Data.QuestionId: *response.Data.Response,
 				}
 
-				if err := d.db.ExitSurveyResponses.AddResponses(ctx, guildId, ticketIdMapTwo[response.TicketId], formIdMap[*response.Data.FormId], resps); err != nil {
+				if err := d.db.ExitSurveyResponses.AddResponses(ctx, guildId, ticketIdMap[response.TicketId], formIdMap[*response.Data.FormId], resps); err != nil {
 					d.logger.Error("Failed to import survey response", zap.Uint64("guild", guildId), zap.Int("ticket", response.TicketId), zap.Error(err))
 					failedSurveyResponses++
 				}
@@ -1345,10 +1358,10 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 			d.logger.Info("Importing close reasons", zap.Uint64("guild", guildId))
 			failedCloseReasons := 0
 			for _, reason := range data.CloseReasons {
-				if _, ok := ticketIdMapTwo[reason.TicketId]; !ok {
+				if _, ok := ticketIdMap[reason.TicketId]; !ok {
 					continue
 				}
-				if err := d.db.CloseReason.Set(ctx, guildId, ticketIdMapTwo[reason.TicketId], reason.Data); err != nil {
+				if err := d.db.CloseReason.Set(ctx, guildId, ticketIdMap[reason.TicketId], reason.Data); err != nil {
 					d.logger.Error("Failed to import close reason", zap.Uint64("guild", guildId), zap.Int("ticket", reason.TicketId), zap.Error(err))
 					failedCloseReasons++
 				}
@@ -1367,10 +1380,10 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 			failedAutocloseExcluded := 0
 			d.logger.Info("Importing autoclose excluded tickets", zap.Uint64("guild", guildId))
 			for _, ticketId := range data.AutocloseExcluded {
-				if _, ok := ticketIdMapTwo[ticketId]; !ok {
+				if _, ok := ticketIdMap[ticketId]; !ok {
 					continue
 				}
-				if err := d.db.AutoCloseExclude.Exclude(ctx, guildId, ticketIdMapTwo[ticketId]); err != nil {
+				if err := d.db.AutoCloseExclude.Exclude(ctx, guildId, ticketIdMap[ticketId]); err != nil {
 					d.logger.Error("Failed to import autoclose excluded ticket", zap.Uint64("guild", guildId), zap.Int("ticket", ticketId), zap.Error(err))
 					failedAutocloseExcluded++
 				}
@@ -1389,10 +1402,10 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 			d.logger.Info("Importing archive messages", zap.Uint64("guild", guildId))
 			failedArchiveMessages := 0
 			for _, message := range data.ArchiveMessages {
-				if _, ok := ticketIdMapTwo[message.TicketId]; !ok {
+				if _, ok := ticketIdMap[message.TicketId]; !ok {
 					continue
 				}
-				if err := d.db.ArchiveMessages.Set(ctx, guildId, ticketIdMapTwo[message.TicketId], message.Data.ChannelId, message.Data.MessageId); err != nil {
+				if err := d.db.ArchiveMessages.Set(ctx, guildId, ticketIdMap[message.TicketId], message.Data.ChannelId, message.Data.MessageId); err != nil {
 					d.logger.Error("Failed to import archive message", zap.Uint64("guild", guildId), zap.Int("ticket", message.TicketId), zap.Error(err))
 					failedArchiveMessages++
 				}
