@@ -99,7 +99,7 @@ func (d *Daemon) RunTranscriptsOnce(ctx context.Context) error {
 
 	v := validator.NewValidator(
 		*v1PublicKey,
-		validator.WithMaxUncompressedSize(1024*1024*1024),
+		validator.WithMaxUncompressedSize(10*1024*1024*1024),
 		validator.WithMaxIndividualFileSize(100*1024*1024),
 	)
 
@@ -289,7 +289,7 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 
 	v := validator.NewValidator(
 		*v1PublicKey,
-		validator.WithMaxUncompressedSize(1024*1024*1024),
+		validator.WithMaxUncompressedSize(10*1024*1024*1024),
 		validator.WithMaxIndividualFileSize(100*1024*1024),
 	)
 
