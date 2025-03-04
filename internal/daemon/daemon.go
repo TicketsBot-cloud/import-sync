@@ -334,14 +334,55 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 		}
 		dataReader := bytes.NewReader(dataBuffer.Bytes())
 
+		// Mark guild as processing
+		if _, err := d.r.MarkGuildProcessing(ctx, guildId); err != nil {
+			d.logger.Error("Failed to mark guild as processing", zap.Error(err))
+			continue
+		}
+
+		const runType = "DATA"
+
+		runId, err := d.db.ImportLogs.CreateRun(ctx, guildId, runType)
+		if err != nil {
+			d.logger.Error("Failed to create run", zap.Error(err))
+			continue
+		}
+
 		data, err := v.ValidateGuildData(dataReader, object.Size)
 		if err != nil {
 			d.logger.Error("Failed to validate data", zap.Error(err))
+			if strings.Contains(err.Error(), "open data.json: file does not exist") {
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "data", "Failed to validate data - You have uploaded a transcript file instead of a data file")
+			} else {
+				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "data", "Failed to validate data")
+			}
+
+			// Delete file, mark as processed, finish log and continue
+			if err := utils.S3Client.RemoveObject(d.config.S3.Import.Bucket, object.Key); err != nil {
+				d.logger.Error("Failed to delete object", zap.Error(err))
+			}
+
+			if err := d.r.MarkGuildProcessed(ctx, guildId); err != nil {
+				d.logger.Error("Failed to mark guild as processed", zap.Error(err))
+			}
+
+			d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "RUN_COMPLETE", "data", "Data Run Failed")
 			continue
 		}
 
 		if data.GuildId != guildId {
 			d.logger.Error("Guild ID mismatch", zap.Uint64("expected", guildId), zap.Uint64("actual", data.GuildId))
+			d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "data", "Failed to validate data - Guild ID mismatch")
+			// Delete file, mark as processed, finish log and continue
+			if err := utils.S3Client.RemoveObject(d.config.S3.Import.Bucket, object.Key); err != nil {
+				d.logger.Error("Failed to delete object", zap.Error(err))
+			}
+
+			if err := d.r.MarkGuildProcessed(ctx, guildId); err != nil {
+				d.logger.Error("Failed to mark guild as processed", zap.Error(err))
+			}
+
+			d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "RUN_COMPLETE", "data", "Data Run Failed")
 			continue
 		}
 
@@ -375,20 +416,6 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 
 		if panelIdMap == nil {
 			panelIdMap = make(map[int]int)
-		}
-
-		// Mark guild as processing
-		if _, err := d.r.MarkGuildProcessing(ctx, guildId); err != nil {
-			d.logger.Error("Failed to mark guild as processing", zap.Error(err))
-			continue
-		}
-
-		const runType = "DATA"
-
-		runId, err := d.db.ImportLogs.CreateRun(ctx, guildId, runType)
-		if err != nil {
-			d.logger.Error("Failed to create run", zap.Error(err))
-			continue
 		}
 
 		if data.GuildIsGloballyBlacklisted {
