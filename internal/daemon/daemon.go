@@ -290,7 +290,7 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 	v := validator.NewValidator(
 		*v1PublicKey,
 		validator.WithMaxUncompressedSize(10*1024*1024*1024),
-		validator.WithMaxIndividualFileSize(100*1024*1024),
+		validator.WithMaxIndividualFileSize(1024*1024*1024),
 	)
 
 	for object := range objectCh {
@@ -1384,17 +1384,16 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 		ticketsExtrasGroup.Go(func() (err error) {
 			d.logger.Info("Importing close reasons", zap.Uint64("guild", guildId))
 			failedCloseReasons := 0
+			reasonMap := make(map[int]database.CloseMetadata)
 			for _, reason := range data.CloseReasons {
 				if _, ok := ticketIdMap[reason.TicketId]; !ok {
 					continue
 				}
-				if err := d.db.CloseReason.Set(ctx, guildId, ticketIdMap[reason.TicketId], reason.Data); err != nil {
-					d.logger.Error("Failed to import close reason", zap.Uint64("guild", guildId), zap.Int("ticket", reason.TicketId), zap.Error(err))
-					failedCloseReasons++
-				}
+				reasonMap[ticketIdMap[reason.TicketId]] = reason.Data
 			}
 
-			if failedCloseReasons == 0 {
+			if err := d.db.CloseReason.SetBulk(ctx, guildId, reasonMap); err != nil {
+				d.logger.Error("Failed to import close reasons", zap.Uint64("guild", guildId), zap.Error(err))
 				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SUCCESS", "close_reasons", "Imported close reasons")
 			} else {
 				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "close_reasons", fmt.Sprintf("Failed to import %d close reasons", failedCloseReasons))

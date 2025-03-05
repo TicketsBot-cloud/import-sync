@@ -12,7 +12,7 @@ require (
 	github.com/BurntSushi/toml v1.4.0
 	github.com/TicketsBot-cloud/archiverclient v0.0.0-20250206203822-d4f91573ad70
 	github.com/TicketsBot-cloud/common v0.0.0-20250208140430-b5da1dd487b3
-	github.com/TicketsBot-cloud/database v0.0.0-20250303090548-7ca86cd07237
+	github.com/TicketsBot-cloud/database v0.0.0-20250305075424-7e225cd21603
 	github.com/caarlos0/env/v11 v11.3.1
 	github.com/getsentry/sentry-go v0.31.1
 	github.com/go-redis/redis/v8 v8.11.3
