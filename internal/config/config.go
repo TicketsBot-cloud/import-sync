@@ -41,6 +41,7 @@ type Config struct {
 			Bucket string `env:"BUCKET,required"`
 		} `envPrefix:"ARCHIVE_"`
 
+		Secure    bool   `env:"SECURE" envDefault:"true"`
 		Endpoint  string `env:"ENDPOINT,required"`
 		AccessKey string `env:"ACCESS_KEY,required"`
 		SecretKey string `env:"SECRET_KEY,required"`
