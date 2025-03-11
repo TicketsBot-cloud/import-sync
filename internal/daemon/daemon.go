@@ -100,7 +100,7 @@ func (d *Daemon) RunTranscriptsOnce(ctx context.Context) error {
 	v := validator.NewValidator(
 		*v1PublicKey,
 		validator.WithMaxUncompressedSize(10*1024*1024*1024),
-		validator.WithMaxIndividualFileSize(100*1024*1024),
+		validator.WithMaxIndividualFileSize(1024*1024*1024),
 	)
 
 	for object := range objectCh {
@@ -1093,8 +1093,8 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 				continue
 			}
 			teamsToAdd := make([]int, len(teams))
-			for _, team := range teams {
-				teamsToAdd = append(teamsToAdd, supportTeamIdMap[team])
+			for i, team := range teams {
+				teamsToAdd[i] = supportTeamIdMap[team]
 			}
 
 			if err := d.db.PanelTeams.Replace(ctx, panelIdMap[panelId], teamsToAdd); err != nil {
@@ -1176,20 +1176,23 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 			d.logger.Error("Failed to get total ticket count", zap.Error(err))
 			continue
 		}
-		ticketsToCreate := make([]database.Ticket, len(data.Tickets))
+		ticketsToCreate := make([]database.Ticket, 0)
 		ticketIdMapTwo := make(map[int]int)
 
+		toCreateCount := 0
+
 		// Import tickets
-		for i, ticket := range data.Tickets {
+		for _, ticket := range data.Tickets {
 			if _, ok := ticketIdMap[ticket.Id]; !ok {
-				d.logger.Info("Importing ticket", zap.Uint64("guild", guildId), zap.Int("ticket", ticket.Id), zap.Int("new_ticket", ticket.Id+ticketCount))
+				toCreateCount++
+				d.logger.Info("Importing ticket", zap.Uint64("guild", guildId), zap.Int("ticket", ticket.Id), zap.Int("new_ticket", ticketCount+toCreateCount))
 				var panelId *int
 				if ticket.PanelId != nil {
 					a := panelIdMap[*ticket.PanelId]
 					panelId = &a
 				}
-				ticketsToCreate[i] = database.Ticket{
-					Id:               ticket.Id + ticketCount,
+				ticketsToCreate = append(ticketsToCreate, database.Ticket{
+					Id:               ticketCount + toCreateCount,
 					GuildId:          guildId,
 					ChannelId:        ticket.ChannelId,
 					UserId:           ticket.UserId,
@@ -1202,13 +1205,13 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 					IsThread:         ticket.IsThread,
 					JoinMessageId:    ticket.JoinMessageId,
 					NotesThreadId:    ticket.NotesThreadId,
-				}
+				})
 
-				ticketIdMapTwo[ticket.Id] = ticket.Id + ticketCount
-				ticketIdMap[ticket.Id] = ticket.Id + ticketCount
+				ticketIdMapTwo[ticket.Id] = ticketCount + toCreateCount
+				ticketIdMap[ticket.Id] = ticketCount + toCreateCount
 			} else {
 				d.logger.Warn("Skipping ticket due to existing ticket", zap.Uint64("guild", guildId), zap.Int("ticket", ticket.Id))
-				d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SKIP", "ticket", fmt.Sprintf("Skipping ticket due to existing ticket (Ticket: %d)", ticket.Id))
+				// d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "SKIP", "ticket", fmt.Sprintf("Skipping ticket due to existing ticket (Ticket: %d)", ticket.Id))
 			}
 		}
 
