@@ -48,7 +48,7 @@ func main() {
 
 	logger.Info("Database connected.")
 
-	s3Client, err := minio.New(config.S3.Endpoint, config.S3.AccessKey, config.S3.SecretKey, true)
+	s3Client, err := minio.New(config.S3.Endpoint, config.S3.AccessKey, config.S3.SecretKey, config.S3.Secure)
 	if err != nil {
 		logger.Fatal("Failed to connect to S3", zap.Error(err))
 		return
