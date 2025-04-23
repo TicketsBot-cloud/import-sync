@@ -89,7 +89,7 @@ func (d *Daemon) RunTranscriptsOnce(ctx context.Context) error {
 	doneCh := make(chan struct{})
 	defer close(doneCh)
 
-	objectCh := utils.S3Client.ListObjects(d.config.S3.Import.Bucket, "", true, doneCh)
+	objectCh := utils.S3ImportClient.ListObjects(d.config.S3.Import.Bucket, "", true, doneCh)
 
 	v1PublicKey, err := utils.GetV1PublicKey()
 	if err != nil {
@@ -115,7 +115,7 @@ func (d *Daemon) RunTranscriptsOnce(ctx context.Context) error {
 		if err != nil {
 			d.logger.Error("Failed to parse guild ID", zap.Error(err))
 			// Delete file
-			if err := utils.S3Client.RemoveObject(d.config.S3.Import.Bucket, object.Key); err != nil {
+			if err := utils.S3ImportClient.RemoveObject(d.config.S3.Import.Bucket, object.Key); err != nil {
 				d.logger.Error("Failed to delete object", zap.Error(err))
 			}
 			continue
@@ -134,7 +134,7 @@ func (d *Daemon) RunTranscriptsOnce(ctx context.Context) error {
 		}
 
 		// Download the file
-		file, err := utils.S3Client.GetObject(d.config.S3.Import.Bucket, object.Key, minio.GetObjectOptions{})
+		file, err := utils.S3ImportClient.GetObject(d.config.S3.Import.Bucket, object.Key, minio.GetObjectOptions{})
 		if err != nil {
 			d.logger.Error("Failed to download object", zap.Error(err))
 			continue
@@ -150,7 +150,7 @@ func (d *Daemon) RunTranscriptsOnce(ctx context.Context) error {
 		transcripts, err := v.ValidateGuildTranscripts(dataReader, object.Size)
 		if err != nil {
 			d.logger.Error("Failed to validate transcript", zap.Error(err))
-			if err := utils.S3Client.RemoveObject(d.config.S3.Import.Bucket, object.Key); err != nil {
+			if err := utils.S3ImportClient.RemoveObject(d.config.S3.Import.Bucket, object.Key); err != nil {
 				d.logger.Error("Failed to delete object", zap.Error(err))
 			}
 			continue
@@ -158,7 +158,7 @@ func (d *Daemon) RunTranscriptsOnce(ctx context.Context) error {
 
 		if transcripts.GuildId != guildId {
 			d.logger.Error("Guild ID mismatch", zap.Uint64("expected", guildId), zap.Uint64("actual", transcripts.GuildId))
-			if err := utils.S3Client.RemoveObject(d.config.S3.Import.Bucket, object.Key); err != nil {
+			if err := utils.S3ImportClient.RemoveObject(d.config.S3.Import.Bucket, object.Key); err != nil {
 				d.logger.Error("Failed to delete object", zap.Error(err))
 			}
 			continue
@@ -168,7 +168,7 @@ func (d *Daemon) RunTranscriptsOnce(ctx context.Context) error {
 		file.Close()
 
 		// Get list of archived tickets for guild
-		archiveObjs := utils.S3Client.ListObjects(d.config.S3.Archive.Bucket, strconv.FormatUint(guildId, 10), true, doneCh)
+		archiveObjs := utils.S3ArchiveClient.ListObjects(d.config.S3.Archive.Bucket, strconv.FormatUint(guildId, 10), true, doneCh)
 		existingTranscripts := []int{}
 
 		// Mark guild as processing
@@ -260,7 +260,7 @@ func (d *Daemon) RunTranscriptsOnce(ctx context.Context) error {
 		d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "RUN_COMPLETE", "transcripts", "Imported transcripts")
 
 		// Delete transcripts object
-		if err := utils.S3Client.RemoveObject(d.config.S3.Import.Bucket, object.Key); err != nil {
+		if err := utils.S3ImportClient.RemoveObject(d.config.S3.Import.Bucket, object.Key); err != nil {
 			d.logger.Error("Failed to delete object", zap.Error(err))
 			continue
 		}
@@ -279,7 +279,7 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 	doneCh := make(chan struct{})
 	defer close(doneCh)
 
-	objectCh := utils.S3Client.ListObjects(d.config.S3.Import.Bucket, "", true, doneCh)
+	objectCh := utils.S3ImportClient.ListObjects(d.config.S3.Import.Bucket, "", true, doneCh)
 
 	v1PublicKey, err := utils.GetV1PublicKey()
 	if err != nil {
@@ -321,7 +321,7 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 		}
 
 		// Download the file
-		file, err := utils.S3Client.GetObject(d.config.S3.Import.Bucket, object.Key, minio.GetObjectOptions{})
+		file, err := utils.S3ImportClient.GetObject(d.config.S3.Import.Bucket, object.Key, minio.GetObjectOptions{})
 		if err != nil {
 			d.logger.Error("Failed to download object", zap.Error(err))
 			continue
@@ -358,7 +358,7 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 			}
 
 			// Delete file, mark as processed, finish log and continue
-			if err := utils.S3Client.RemoveObject(d.config.S3.Import.Bucket, object.Key); err != nil {
+			if err := utils.S3ImportClient.RemoveObject(d.config.S3.Import.Bucket, object.Key); err != nil {
 				d.logger.Error("Failed to delete object", zap.Error(err))
 			}
 
@@ -374,7 +374,7 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 			d.logger.Error("Guild ID mismatch", zap.Uint64("expected", guildId), zap.Uint64("actual", data.GuildId))
 			d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "FAIL", "data", "Failed to validate data - Guild ID mismatch")
 			// Delete file, mark as processed, finish log and continue
-			if err := utils.S3Client.RemoveObject(d.config.S3.Import.Bucket, object.Key); err != nil {
+			if err := utils.S3ImportClient.RemoveObject(d.config.S3.Import.Bucket, object.Key); err != nil {
 				d.logger.Error("Failed to delete object", zap.Error(err))
 			}
 
@@ -1454,7 +1454,7 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 		d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "RUN_COMPLETE", "guild", "Guild import run complete")
 
 		// Delete object
-		if err := utils.S3Client.RemoveObject(d.config.S3.Import.Bucket, object.Key); err != nil {
+		if err := utils.S3ImportClient.RemoveObject(d.config.S3.Import.Bucket, object.Key); err != nil {
 			d.logger.Error("Failed to delete object", zap.Error(err))
 			continue
 		}

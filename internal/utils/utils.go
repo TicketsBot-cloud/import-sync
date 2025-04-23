@@ -17,7 +17,8 @@ import (
 )
 
 var ArchiverClient *archiverclient.ArchiverClient
-var S3Client *minio.Client
+var S3ImportClient *minio.Client
+var S3ArchiveClient *minio.Client
 
 func SetupLogger() (*zap.Logger, error) {
 	var logger *zap.Logger

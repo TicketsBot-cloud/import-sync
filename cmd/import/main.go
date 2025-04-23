@@ -48,14 +48,22 @@ func main() {
 
 	logger.Info("Database connected.")
 
-	s3Client, err := minio.New(config.S3.Endpoint, config.S3.AccessKey, config.S3.SecretKey, true)
+	s3ImportClient, err := minio.New(config.S3.Import.Endpoint, config.S3.Import.AccessKey, config.S3.Import.SecretKey, true)
 	if err != nil {
-		logger.Fatal("Failed to connect to S3", zap.Error(err))
+		logger.Fatal("Failed to connect to Import S3", zap.Error(err))
 		return
 	}
 
-	logger.Info("S3 connected.")
-	utils.S3Client = s3Client
+	logger.Info("Import S3 connected.")
+	utils.S3ImportClient = s3ImportClient
+
+	s3ArchiveClient, err := minio.New(config.S3.Archive.Endpoint, config.S3.Archive.AccessKey, config.S3.Archive.SecretKey, true)
+	if err != nil {
+		logger.Fatal("Failed to connect to Archive S3", zap.Error(err))
+		return
+	}
+	logger.Info("Archive S3 connected.")
+	utils.S3ArchiveClient = s3ArchiveClient
 
 	redis.Client = redis.NewRedisClient()
 

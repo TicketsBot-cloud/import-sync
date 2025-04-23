@@ -34,22 +34,24 @@ type Config struct {
 
 	S3 struct {
 		Import struct {
-			Bucket string `env:"BUCKET,required"`
+			Endpoint  string `env:"ENDPOINT,required"`
+			AccessKey string `env:"ACCESS_KEY,required"`
+			SecretKey string `env:"SECRET_KEY,required"`
+			Bucket    string `env:"BUCKET,required"`
 		} `envPrefix:"IMPORT_"`
 
 		Archive struct {
-			Bucket string `env:"BUCKET,required"`
+			Endpoint  string `env:"ENDPOINT,required"`
+			AccessKey string `env:"ACCESS_KEY,required"`
+			SecretKey string `env:"SECRET_KEY,required"`
+			Bucket    string `env:"BUCKET,required"`
 		} `envPrefix:"ARCHIVE_"`
-
-		Endpoint  string `env:"ENDPOINT,required"`
-		AccessKey string `env:"ACCESS_KEY,required"`
-		SecretKey string `env:"SECRET_KEY,required"`
 	} `envPrefix:"S3_"`
 
 	V1PublicKey string `env:"V1_PUBLIC_KEY"`
 
 	LogArchiver struct {
-		Url string `env:"URL,,required"`
+		Url string `env:"URL,required"`
 		Key string `env:"KEY,required"`
 	} `envPrefix:"LOG_ARCHIVER_"`
 }
