@@ -133,6 +133,12 @@ func (d *Daemon) RunTranscriptsOnce(ctx context.Context) error {
 			continue
 		}
 
+		// Check if the guild has had at least one data run
+		if _, err := d.db.ImportLogs.GetRuns(ctx, guildId); err != nil && err == pgx.ErrNoRows {
+			d.logger.Warn("Guild has not had a data run", zap.Uint64("guild", guildId))
+			continue
+		}
+
 		// Download the file
 		file, err := utils.S3ImportClient.GetObject(d.config.S3.Import.Bucket, object.Key, minio.GetObjectOptions{})
 		if err != nil {
