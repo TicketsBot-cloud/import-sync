@@ -134,7 +134,20 @@ func (d *Daemon) RunTranscriptsOnce(ctx context.Context) error {
 		}
 
 		// Check if the guild has had at least one data run
-		if _, err := d.db.ImportLogs.GetRuns(ctx, guildId); err != nil && err == pgx.ErrNoRows {
+		runs, err := d.db.ImportLogs.GetRuns(ctx, guildId)
+		if err != nil || len(runs) == 0 {
+			d.logger.Warn("Guild has not had a data run", zap.Uint64("guild", guildId))
+			continue
+		}
+
+		hasDataRun := false
+		for _, run := range runs {
+			if run.RunType == "DATA" {
+				hasDataRun = true
+				break
+			}
+		}
+		if !hasDataRun {
 			d.logger.Warn("Guild has not had a data run", zap.Uint64("guild", guildId))
 			continue
 		}
