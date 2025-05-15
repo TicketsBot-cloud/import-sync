@@ -35,6 +35,7 @@ type Config struct {
 	S3 struct {
 		Import struct {
 			Endpoint  string `env:"ENDPOINT,required"`
+			Secure    bool   `env:"SECURE" envDefault:"true"`
 			AccessKey string `env:"ACCESS_KEY,required"`
 			SecretKey string `env:"SECRET_KEY,required"`
 			Bucket    string `env:"BUCKET,required"`
@@ -42,6 +43,7 @@ type Config struct {
 
 		Archive struct {
 			Endpoint  string `env:"ENDPOINT,required"`
+			Secure    bool   `env:"SECURE" envDefault:"true"`
 			AccessKey string `env:"ACCESS_KEY,required"`
 			SecretKey string `env:"SECRET_KEY,required"`
 			Bucket    string `env:"BUCKET,required"`
