@@ -134,9 +134,9 @@ func (d *Daemon) RunTranscriptsOnce(ctx context.Context) error {
 		}
 
 		// Check if the guild has had at least one data run
-		runs, err := d.db.ImportLogs.GetRuns(ctx, guildId)
+		runs, err := d.db.ImportLogs.GetFinishedRuns(ctx, guildId)
 		if err != nil || len(runs) == 0 {
-			d.logger.Warn("Guild has not had a data run", zap.Uint64("guild", guildId))
+			d.logger.Warn("Guild has not had a finished data run", zap.Uint64("guild", guildId))
 			continue
 		}
 
