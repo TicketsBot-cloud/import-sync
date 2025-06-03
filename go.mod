@@ -26,6 +26,7 @@ require (
 )
 
 require (
+	github.com/TicketsBot-cloud/gdl v0.0.0-20250509054940-2045fbe19c06 // indirect
 	github.com/TicketsBot/common v0.0.0-20241117150316-ff54c97b45c1 // indirect
 	github.com/TicketsBot/logarchiver v0.0.0-20241116233207-0cfab8ec82cf // indirect
 	github.com/TicketsBot/ttlcache v1.6.1-0.20200405150101-acc18e37b261 // indirect
