@@ -1469,6 +1469,10 @@ func (d *Daemon) RunDataOnce(ctx context.Context) error {
 
 		_ = ticketsExtrasGroup.Wait()
 
+		if err := d.db.Tickets.SeedTicketsCounter(ctx, guildId); err != nil {
+			d.logger.Warn("Failed to seed tickets counter", zap.Uint64("guild", guildId), zap.Error(err))
+		}
+
 		d.logger.Info("Finished processing guild", zap.Uint64("guild", guildId))
 		d.db.ImportLogs.AddLog(ctx, guildId, runId, runType, "RUN_COMPLETE", "guild", "Guild import run complete")
 

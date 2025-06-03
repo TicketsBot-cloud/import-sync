@@ -11,8 +11,8 @@ toolchain go1.24.0
 require (
 	github.com/BurntSushi/toml v1.4.0
 	github.com/TicketsBot-cloud/archiverclient v0.0.0-20250206203822-d4f91573ad70
-	github.com/TicketsBot-cloud/common v0.0.0-20250208140430-b5da1dd487b3
-	github.com/TicketsBot-cloud/database v0.0.0-20250305075424-7e225cd21603
+	github.com/TicketsBot-cloud/common v0.0.0-20250509064208-a2d357175463
+	github.com/TicketsBot-cloud/database v0.0.0-20250602202458-a191216d9a57
 	github.com/caarlos0/env/v11 v11.3.1
 	github.com/getsentry/sentry-go v0.31.1
 	github.com/go-redis/redis/v8 v8.11.3
@@ -22,7 +22,7 @@ require (
 	github.com/minio/minio-go v6.0.14+incompatible
 	github.com/sirupsen/logrus v1.9.3
 	go.uber.org/zap v1.27.0
-	golang.org/x/sync v0.11.0
+	golang.org/x/sync v0.14.0
 )
 
 require (
@@ -63,9 +63,9 @@ require (
 	github.com/rs/xid v1.6.0 // indirect
 	github.com/rxdn/gdl v0.0.0-20241201120412-8fd61c53dd96 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
-	golang.org/x/crypto v0.35.0 // indirect
+	golang.org/x/crypto v0.38.0 // indirect
 	golang.org/x/exp v0.0.0-20241108190413-2d47ceb2692f // indirect
 	golang.org/x/net v0.35.0 // indirect
-	golang.org/x/sys v0.30.0 // indirect
-	golang.org/x/text v0.22.0 // indirect
+	golang.org/x/sys v0.33.0 // indirect
+	golang.org/x/text v0.25.0 // indirect
 )
